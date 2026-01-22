@@ -1,0 +1,139 @@
+// ast.h
+
+#pragma once
+
+#include <memory>
+#include <optional>
+#include <string>
+#include <variant>
+#include <vector>
+
+#include "runtime_value.h"
+
+struct Pos {
+    std::size_t line;
+    std::size_t column;
+
+    bool operator==(const Pos& other) const { return (line == other.line) && (column == other.column); }
+    bool operator!=(const Pos& other) const { return !operator==(other); }
+};
+
+struct Span {
+    Pos p1;
+    Pos p2;
+};
+
+template <typename T>
+struct Node {
+    T value;
+    Span s;
+};
+
+struct AstType {
+    struct Int {};
+    struct Float {};
+    struct Bool {};
+    struct String {};
+    struct Regex {};
+    struct Match {};
+    struct Null {};
+    struct List { std::unique_ptr<AstType> element; };
+
+    using Variant = std::variant<
+        Int, Float, Bool, String, Regex, Match, Null, List>;
+
+    Variant value;
+};
+
+enum class Operator {
+    /// Addition (+)
+    Add,
+    /// Subtraction (-)
+    Sub,
+    /// Multiplication (*)
+    Mul,
+    /// Division (/)
+    Div,
+    /// Exponentiation (**)
+    Pow,
+    /// Equality (==)
+    Eq,
+    /// Not equality (!=)
+    Ne,
+    /// Greater Than (>)
+    Gt,
+    /// Less Than (<)
+    Lt,
+    /// Greater or equal (>=)
+    Ge,
+    /// Less or equal (<=)
+    Le,
+    /// Logical AND (&&)
+    And,
+    /// Logical OR (||)
+    Or,
+    /// Logical Not (!)
+    Not,
+    /// String concat (++)
+    Concat,
+};
+
+struct Expr;
+using ExprPtr = std::unique_ptr<Expr>;
+struct RuntimeValue;
+
+struct Expr{
+    struct Literal { RuntimeValue value; };
+    struct Variable { std::string name; };
+    struct UnaryOp { Operator op; ExprPtr next; };
+    struct BinaryOp { ExprPtr left; Operator op; ExprPtr right; };
+    struct FunctionCall { std::string name; std::vector<ExprPtr> args; };
+    struct Ternary { ExprPtr condition; ExprPtr then_expr; ExprPtr else_expr; };
+
+    using Variant = std::variant<
+        Literal, Variable, UnaryOp, BinaryOp, FunctionCall, Ternary>;
+
+    Span span;
+    Variant value;
+};
+
+struct Statement;
+using StmtPtr = std::unique_ptr<Statement>;
+struct Statement {
+
+    struct Assignment {
+        std::string name;
+        Expr expr;
+    };
+
+    struct If {
+        Expr condition;
+        std::vector<StmtPtr> body;
+        std::vector<std::pair<Expr, std::vector<StmtPtr>>> elif;
+        std::vector<StmtPtr> else_body;
+    };
+
+    struct While {
+        Expr condition;
+        std::vector<StmtPtr> body;
+    };
+
+    struct Return {
+        Expr value;
+    };
+
+    struct FunctionDef {
+        std::string name;
+        std::vector<std::pair<std::string, AstType>> params;
+        std::vector<StmtPtr> body;
+        std::optional<AstType> return_type;
+    };
+
+    struct Break {};
+    struct Continue {};
+
+    using Variant = std::variant<
+        Assignment, If, While, Return, FunctionDef, Break, Continue>;
+
+    Variant value;
+};

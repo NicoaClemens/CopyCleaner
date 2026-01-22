@@ -1,0 +1,35 @@
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehtumbs.db
+Desktop.ini
+$RECYCLE_BIN/
+*~
+# Editor files
+.vscode/
+.history/
+*.code_workspace
+.idea/
+*.iml
+
+# General
+build/
+bin/
+out/
+dist/
+tmp/
+temp/
+*.log
+.venv/
+__pycache__/
+*.exe
+*.dll
+*.so
+*.o
+*.obj
+*.lib
+*.tmp
+*.old
+*.bak
