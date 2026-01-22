@@ -23,7 +23,8 @@
   - `int ↔ float`
   - Any type can be converted to `string`
   - Explicit conversion syntax: `newType myVar(oldVar);`
-- uninitialised variables not allowed. May add shortcut in the future where `type variable` automatically extends to `type variable(0)` before parsing.
+- empty initialiser defaults to null
+- Variable assignment using = allowed, but initialisiation must be via `int n(4)` or `int n() = {expression}`
   
 | Type | Example | Notes / Members / Methods |
 | ---- | ------- | ------------------------- |
