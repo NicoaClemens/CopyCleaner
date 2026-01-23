@@ -24,6 +24,7 @@
   - Any type can be converted to `string`
   - Explicit conversion syntax: `newType myVar(oldVar);`
 - empty initialiser defaults to null
+- strings are encapsulated by " ", regexes by \ \, lists by { }
 - Variable assignment using = allowed, but initialisiation must be via `int n(4)` or `int n() = {expression}`
   
 | Type | Example | Notes / Members / Methods |
@@ -32,7 +33,7 @@
 | `int` | `int n(-4)` | - |
 | `float` | `float f(1.5)` | - |
 | `boolean` | `boolean b(true)` | - |
-| `regex` | `regex r("^[a-zA-Z0-9_]", "rm")` | Methods: `.getAll(string)` → `list<match>`; Members: `.re`, `.flags` |
+| `regex` | `regex r(\^[a-zA-Z0-9_]\, "rm")` | Methods: `.getAll(string)` → `list<match>`; Members: `.re`, `.flags` |
 | `list<T>` | `list<int> l({1,2,3})` | Methods: `.get(index)`. Negative index returns item at index counted backwards from end of list. |
 | `match` | N/A | Returned by regex `.get()`, Members: `.start`, `.end`, `.content`. |
 
