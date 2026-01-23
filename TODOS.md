@@ -7,7 +7,9 @@
 
 ## dev-related
 
-- [ ] set up and document CMAKE 
+- [ ] set up and document CMAKE
+- [ ] define interpreter behaviour (cli arguments, feedback?)
+- [ ] plan helper tool that allows to easily call scripts on shortcuts or per taskbar or hwatever
 
 ## smaller todos
 - [ ] lexer treats any / that is not // as the start of a regex => division operator is unreachable.
@@ -27,8 +29,6 @@ Solution: either check if current expression has a closing \ tag => may be compl
 
 ## general behaviour
 
-- [ ] define interpreter behaviour (cli arguments, feedback?)
-- [ ] plan helper tool that allows to easily call scripts on shortcuts or per taskbar or hwatever
 - [ ] add '-' as unary operator (numerical negation)
 - [ ] exit() calls std::exit(0) internally -> change to graceful exit
 - [ ] builtin methods (docs/methods.md) -> docs need to be fully fleshed out for ALL builtin methods, builtins must be implemented -> seperate /builtins class and/or folder
