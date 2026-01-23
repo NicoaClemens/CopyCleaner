@@ -83,6 +83,9 @@ int number2(0) = add(number, 2)     // 7
  - No operator overloading.
  - OOE: Arithmetic -> Comparison -> Logical -> Ternary. Inside those categories as listed (`**` before `*` before `/` ...)
 
+### Notes
+ - dividing int by int truncates to int -> if float result is resired, cast one value to float beforehand
+
 ## Control Flow
 
  - if statements:
