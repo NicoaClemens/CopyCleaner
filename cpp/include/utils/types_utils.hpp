@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cmath>
 #include <memory>
 #include <regex>
 #include <string>
@@ -13,8 +14,22 @@
 #include "runtime_value.h"
 
 inline bool operator==(const RuntimeValue& a, const RuntimeValue& b) {
-    if (a.value.index() != b.value.index())
+    // If types differ, allow implicit numeric comparison between Int and Float
+    if (a.value.index() != b.value.index()) {
+        // Int <-> Float implicit equality
+        bool a_is_int = std::holds_alternative<RuntimeValue::Int>(a.value);
+        bool a_is_float = std::holds_alternative<RuntimeValue::Float>(a.value);
+        bool b_is_int = std::holds_alternative<RuntimeValue::Int>(b.value);
+        bool b_is_float = std::holds_alternative<RuntimeValue::Float>(b.value);
+        if ((a_is_int || a_is_float) && (b_is_int || b_is_float)) {
+            double ad = a_is_int ? static_cast<double>(std::get<RuntimeValue::Int>(a.value).value)
+                                  : std::get<RuntimeValue::Float>(a.value).value;
+            double bd = b_is_int ? static_cast<double>(std::get<RuntimeValue::Int>(b.value).value)
+                                  : std::get<RuntimeValue::Float>(b.value).value;
+            return std::abs(ad - bd) < 1e-9;
+        }
         return false;
+    }
 
     switch (a.value.index()) {
         case 0: // Int
@@ -146,7 +161,14 @@ inline bool matches_type(const RuntimeValue& v, const AstType& t) {
                 return true;
 
             else if constexpr (std::is_same_v<V, RuntimeValue::List> && std::is_same_v<T, AstType::List>) {
-                return true; // TODO -> 
+                // If the AST list type specifies an element type, ensure all elements match it
+                const auto& rv = std::get<RuntimeValue::List>(v.value).values;
+                if (!ty.element) return true;
+                const AstType& elem_type = *ty.element;
+                for (const auto& item : rv) {
+                    if (!matches_type(item, elem_type)) return false;
+                }
+                return true;
             }
 
             else if constexpr (std::is_same_v<V, RuntimeValue::Null> && std::is_same_v<T, AstType::Null>)
