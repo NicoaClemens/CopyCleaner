@@ -1,7 +1,15 @@
 # TODOS
-## small in existing files
+
+## most important
+
+- [ ] rethink how error handling works & document it better (binary op fall through)
 - [ ] change Result to using `Result = std::variant<T, std::shared_ptr<Error>>;` in errors.hpp and change usages -> or as entire class with is_ok(), is_err(), T& unwrap, etc?
-- [ ] general -> rethink how error handling works & document it better (binary op fall through)
+
+## dev-related
+
+- [ ] set up and document CMAKE 
+
+## smaller todos
 - [ ] lexer treats any / that is not // as the start of a regex => division operator is unreachable.
 Solution: either check if current expression has a closing \ tag => may be complicated to implement OR change division operator => simpler but makes it more unintuivite
 - [ ] add fstring to parser
@@ -12,16 +20,12 @@ Solution: either check if current expression has a closing \ tag => may be compl
 - [ ] change regex to a struct RegexType with fields for literal and flags instead of std::regex -> also fix regex truthyness equality and to_string
 - [ ] numeric_pow might overflow
 
----
-
 ## new classes
 
 - [ ] parser
 - [ ] main entry point
 
----
-
-## behaviour
+## general behaviour
 
 - [ ] define interpreter behaviour (cli arguments, feedback?)
 - [ ] plan helper tool that allows to easily call scripts on shortcuts or per taskbar or hwatever
