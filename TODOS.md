@@ -1,5 +1,7 @@
 # TODOS
 
+note: finished todos be removed in most cases, not checked off.
+
 ## most important
 
 - [ ] rethink how error handling works & document it better (binary op fall through)
