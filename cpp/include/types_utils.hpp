@@ -44,7 +44,6 @@ inline bool operator==(const RuntimeValue& a, const RuntimeValue& b) {
     }
 }
 
-
 inline std::string to_string(const RuntimeValue& v);
 
 inline std::string to_string(const RuntimeValue& v) {

@@ -4,7 +4,7 @@
 #include <cstdlib>
 
 #include "runtime.h"
-#include "types.hpp"
+#include "types_utils.hpp"
 #include "runtime_utils.h"
 
 std::optional<RuntimeValue> Environment::get(const std::string& name) {
@@ -38,7 +38,7 @@ Result<RuntimeValue> Interpreter::run(std::vector<Statement>& stmts) {
 
 Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Environment& env) {
     for (auto &s : stmts) {
-        
+
         // Assignment
         if (auto a = std::get_if<Statement::Assignment>(&s.value)) {
             auto r = this->eval_expr(a->expr, env.shared_from_this());
