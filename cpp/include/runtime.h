@@ -41,7 +41,7 @@ struct Environment : public std::enable_shared_from_this<Environment> {
 };
 
 struct MethodRepr {
-    std::map<std::string, AstType> args;
+    std::vector<std::pair<std::string, AstType>> args;
     AstType returnType{ AstType::Null{} };
     std::vector<Statement> body;
 };

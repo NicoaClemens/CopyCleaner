@@ -11,10 +11,14 @@
 struct Error {
     std::string message;
     Span* span;
+    Error() : message(), span(nullptr) {}
+    Error(std::string m, Span* s = nullptr) : message(std::move(m)), span(s) {}
+    virtual ~Error() = default;
     virtual std::string fmt() const = 0;
 };
 
 struct RuntimeError : public Error {
+    using Error::Error;
     std::string fmt() const override {
         std::stringstream ss;
         if (span)
@@ -25,6 +29,7 @@ struct RuntimeError : public Error {
     }
 };
 struct SyntaxError  : public Error {
+    using Error::Error;
     std::string fmt() const override {
         std::stringstream ss;
         if (span)

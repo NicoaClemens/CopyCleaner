@@ -115,7 +115,7 @@ Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Env
         // FunctionDef
         if (auto f = std::get_if<Statement::FunctionDef>(&s.value)) {
             MethodRepr m;
-            for (auto &p : f->params) m.args.emplace(p.first, p.second);
+            for (auto &p : f->params) m.args.emplace_back(p.first, p.second);
             m.returnType = f->return_type.value_or(AstType{ AstType::Null{} });
             for (auto &sp : f->body) m.body.push_back(*sp);
             this->functions[f->name] = std::move(m);
@@ -161,12 +161,9 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
         auto r = this->eval_expr(*u.next, env);
         if (r.success == ResultType::Error) return make_err(r.error.value());
         if (u.op == Operator::Not) {
-            if (std::holds_alternative<RuntimeValue::Bool>(r.value.value)) {
-                bool b = std::get<RuntimeValue::Bool>(r.value.value).value;
-                RuntimeValue out; out.value = RuntimeValue::Bool{ !b };
-                return Result<RuntimeValue>{ out, ResultType::OK };
-            }
-            return Result<RuntimeValue>{ RuntimeValue::Null{}, ResultType::OK };
+            bool val = is_truthy(r.value);
+            RuntimeValue out; out.value = RuntimeValue::Bool{ !val };
+            return Result<RuntimeValue>{ out, ResultType::OK };
         }
         return Result<RuntimeValue>{ RuntimeValue::Null{}, ResultType::OK };
     }
@@ -175,12 +172,38 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
         const auto &b = std::get<E::BinaryOp>(expr.value);
         auto lr = this->eval_expr(*b.left, env);
         if (lr.success == ResultType::Error) return make_err(lr.error.value());
+        RuntimeValue l = lr.value;
+
+        // Short-circuiting logical operators implemented here so RHS isn't evaluated unnecessarily
+        switch (b.op) {
+            case Operator::And: {
+                if (!is_truthy(l)) { RuntimeValue out; out.value = RuntimeValue::Bool{ false }; return Result<RuntimeValue>{ out, ResultType::OK }; }
+                {
+                    auto rr = this->eval_expr(*b.right, env);
+                    if (rr.success == ResultType::Error) return make_err(rr.error.value());
+                    RuntimeValue r = rr.value;
+                    RuntimeValue out; out.value = RuntimeValue::Bool{ is_truthy(r) };
+                    return Result<RuntimeValue>{ out, ResultType::OK };
+                }
+            }
+            case Operator::Or: {
+                if (is_truthy(l)) { RuntimeValue out; out.value = RuntimeValue::Bool{ true }; return Result<RuntimeValue>{ out, ResultType::OK }; }
+                {
+                    auto rr = this->eval_expr(*b.right, env);
+                    if (rr.success == ResultType::Error) return make_err(rr.error.value());
+                    RuntimeValue r = rr.value;
+                    RuntimeValue out; out.value = RuntimeValue::Bool{ is_truthy(r) };
+                    return Result<RuntimeValue>{ out, ResultType::OK };
+                }
+            }
+            default:
+                break;
+        }
+
+        // Non-short-circuiting/other operators: evaluate RHS now
         auto rr = this->eval_expr(*b.right, env);
         if (rr.success == ResultType::Error) return make_err(rr.error.value());
-        RuntimeValue l = lr.value;
         RuntimeValue r = rr.value;
-
-        // helpers in runtime_utils.hpp
 
         switch (b.op) {
             case Operator::Add: {
@@ -227,14 +250,6 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
             }
             case Operator::Le: {
                 if (auto res = runtime_utils::compare_le(l, r); res.has_value()) return Result<RuntimeValue>{ res.value(), ResultType::OK };
-                return Result<RuntimeValue>{ RuntimeValue::Null{}, ResultType::OK };
-            }
-            case Operator::And: {
-                if (auto res = runtime_utils::bool_and(l, r); res.has_value()) return Result<RuntimeValue>{ res.value(), ResultType::OK };
-                return Result<RuntimeValue>{ RuntimeValue::Null{}, ResultType::OK };
-            }
-            case Operator::Or: {
-                if (auto res = runtime_utils::bool_or(l, r); res.has_value()) return Result<RuntimeValue>{ res.value(), ResultType::OK };
                 return Result<RuntimeValue>{ RuntimeValue::Null{}, ResultType::OK };
             }
             case Operator::Concat: {
