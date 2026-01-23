@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <sstream>
 
@@ -39,9 +40,11 @@ enum class ResultType{
     Error,
 };
 
-template <typename T>
+
+/// @brief `error` must be set if `success` is `ResultType::Error` 
+template <typename T> 
 struct Result {
     T value;
     ResultType success;
-    Error error;
+    std::optional<std::shared_ptr<Error>> error; 
 };
