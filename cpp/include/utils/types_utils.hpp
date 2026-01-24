@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <cmath>
 #include <memory>
-#include <regex>
 #include <string>
 #include <variant>
 #include <vector>
@@ -50,7 +49,7 @@ inline bool operator==(const RuntimeValue& a, const RuntimeValue& b) {
         case 6: { // Regex
             const auto& l = std::get<RuntimeValue::Regex>(a.value);
             const auto& r = std::get<RuntimeValue::Regex>(b.value);
-            return l.re.mark_count() == r.re.mark_count() && l.flags == r.flags;
+            return l.re.flags == r.re.flags && l.re.literal == r.re.literal;
         }
         case 7: // Null
             return true;
@@ -92,7 +91,7 @@ inline std::string to_string(const RuntimeValue& v) {
             return val.content;
 
         else if constexpr (std::is_same_v<T, RuntimeValue::Regex>)
-            return val.flags;
+            return "/" + val.re.literal + "/" + val.re.flags;
 
         else if constexpr (std::is_same_v<T, RuntimeValue::Null>)
             return "null";
@@ -125,7 +124,7 @@ inline bool is_truthy(const RuntimeValue& v) {
             return true;
 
         else if constexpr (std::is_same_v<T, RuntimeValue::Regex>)
-            return true;
+            return !val.re.literal.empty();
 
         else if constexpr (std::is_same_v<T, RuntimeValue::Null>)
             return false;

@@ -22,6 +22,7 @@ Solution: either check if current expression has a closing \ tag => may be compl
 - [ ] Function call argument count mismatch returns OK / null -> change to error 
 - [ ] change regex to a struct RegexType with fields for literal and flags instead of std::regex -> also fix regex truthyness equality and to_string
 - [ ] numeric_pow might overflow
+- [ ] for some reason `AstType returnType{ AstType::Null{} };` in runtime.h/MethodRepr declaration returns an error
 
 ## new classes
 
