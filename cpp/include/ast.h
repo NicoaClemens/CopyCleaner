@@ -30,6 +30,14 @@ struct Node {
 };
 
 struct AstType {
+
+    AstType() = default;
+    AstType(const AstType& other);
+    AstType& operator=(const AstType& other);
+
+    AstType(AstType&&) noexcept = default;
+    AstType& operator=(AstType&&) noexcept = default;
+
     struct Int {};
     struct Float {};
     struct Bool {};
@@ -81,8 +89,15 @@ enum class Operator {
 struct Expr;
 using ExprPtr = std::unique_ptr<Expr>;
 struct RuntimeValue;
-
 struct Expr{
+
+    Expr() = default;
+    Expr(const Expr& other);
+    Expr& operator=(const Expr& other);
+
+    Expr(Expr&&) noexcept = default;
+    Expr& operator=(Expr&&) noexcept = default;
+
     struct Literal { RuntimeValue value; };
     struct Variable { std::string name; };
     struct UnaryOp { Operator op; ExprPtr next; };
@@ -101,10 +116,14 @@ struct Statement;
 using StmtPtr = std::unique_ptr<Statement>;
 struct Statement {
 
-    struct Assignment {
-        std::string name;
-        Expr expr;
-    };
+    Statement() = default;
+    Statement(const Statement& other);
+    Statement& operator=(const Statement& other);
+    
+    Statement(Statement&&) noexcept = default;
+    Statement& operator=(Statement&&) noexcept = default;
+
+    struct Assignment { std::string name; Expr expr; };
 
     struct If {
         Expr condition;
@@ -113,14 +132,9 @@ struct Statement {
         std::vector<StmtPtr> else_body;
     };
 
-    struct While {
-        Expr condition;
-        std::vector<StmtPtr> body;
-    };
+    struct While { Expr condition; std::vector<StmtPtr> body; };
 
-    struct Return {
-        Expr value;
-    };
+    struct Return { Expr value; };
 
     struct FunctionDef {
         std::string name;
