@@ -198,7 +198,7 @@ Result<Token> Lexer::next_token() {
 
     if (eof()) {
         Token t{TokenKind::EndOfFile, src_.substr(pos_,0), Span{Pos{line_,column_}, Pos{line_,column_}}};
-        return Result<Token>{t, ResultType::OK, std::nullopt};
+        return ok(t);
     }
 
     Pos start{line_, column_};
@@ -207,12 +207,12 @@ Result<Token> Lexer::next_token() {
 
     if (std::isdigit(static_cast<unsigned char>(c))) {
         Token t = read_number(start);
-        return Result<Token>{t, ResultType::OK, std::nullopt};
+        return ok(t);
     }
 
     if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
         Token t = read_identifier_or_keyword(start);
-        return Result<Token>{t, ResultType::OK, std::nullopt};
+        return ok(t);
     }
 
     if (c == '"' || c == '\'') {
@@ -220,9 +220,9 @@ Result<Token> Lexer::next_token() {
         // detect unterminated crude check: must end with same quote
         if (t.lexeme.size() < 2 || (t.lexeme.front() != '"' && t.lexeme.front() != '\'')) {
             Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_,column_}}};
-            return Result<Token>{dummy, ResultType::Error, std::make_optional(std::make_shared<SyntaxError>("Unterminated string literal"))};
+            return err<Token>(std::make_shared<Error>("Unterminated string literal", ErrorKind::Syntax));
         }
-        return Result<Token>{t, ResultType::OK, std::nullopt};
+        return ok(t);
     }
 
     // Regex or slash/operator
@@ -231,14 +231,14 @@ Result<Token> Lexer::next_token() {
         // crude unterminated check: regex lexeme must contain at least one '/'
         if (t.lexeme.size() < 2 || t.lexeme.front() != '/') {
             Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_,column_}}};
-            return Result<Token>{dummy, ResultType::Error, std::make_optional(std::make_shared<SyntaxError>("Unterminated regex literal"))};
+            return err<Token>(std::make_shared<Error>("Unterminated regex literal", ErrorKind::Syntax));
         }
-        return Result<Token>{t, ResultType::OK, std::nullopt};
+        return ok(t);
     }
 
     // otherwise operators/punct
     Token op = read_operator_or_punct(start);
-    return Result<Token>{op, ResultType::OK, std::nullopt};
+    return ok(op);
 }
 
 } // namespace lexer

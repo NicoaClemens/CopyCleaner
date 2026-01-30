@@ -7,6 +7,7 @@
 
 #include "ast.h"
 #include "errors.hpp"
+#include "result.hpp"
 
 namespace lexer {
 
