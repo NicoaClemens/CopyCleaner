@@ -24,9 +24,9 @@ public:
 	bool is_ok() const noexcept { return std::holds_alternative<T>(data_); }
 	bool is_err() const noexcept { return std::holds_alternative<std::shared_ptr<Error>>(data_); }
 
-	T& value() & { return std::get<T>(data_); }
-	const T& value() const & { return std::get<T>(data_); }
-	T&& value() && { return std::get<T>(std::move(data_)); }
+	T& value() & { assert(is_ok()); return std::get<T>(data_); }
+	const T& value() const & { assert(is_ok()); return std::get<T>(data_); }
+	T&& value() && { assert(is_ok()); return std::get<T>(std::move(data_)); }
 
 	std::shared_ptr<Error>& error() & { return std::get<std::shared_ptr<Error>>(data_); }
 	const std::shared_ptr<Error>& error() const & { return std::get<std::shared_ptr<Error>>(data_); }
