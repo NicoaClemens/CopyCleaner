@@ -4,8 +4,7 @@ note: finished todos be removed in most cases, not checked off.
 
 ## most important
 
-- [ ] rethink how error handling works & document it better (binary op fall through)
-- [ ] change Result to using `Result = std::variant<T, std::shared_ptr<Error>>;` in errors.hpp and change usages -> or as entire class with is_ok(), is_err(), T& unwrap, etc?
+- 
 
 ## dev-related
 
@@ -20,9 +19,7 @@ Solution: either check if current expression has a closing \ tag => may be compl
 - [ ] lexer consumes backslash + next-char inside strings but does not collapse backslash + newline into "no newline" at lexing time
 - [ ] change type of Token.lexeme to std::string? 
 - [ ] Function call argument count mismatch returns OK / null -> change to error 
-- [ ] change regex to a struct RegexType with fields for literal and flags instead of std::regex -> also fix regex truthyness equality and to_string
-- [ ] numeric_pow might overflow
-- [ ] for some reason `AstType returnType{ AstType::Null{} };` in runtime.h/MethodRepr declaration returns an error
+- [ ] numeric_pow might overflow -> irrelevant? (a) when would that matter (b) it's for the user to worry about -> add documentation when it will overflow
 
 ## new classes
 

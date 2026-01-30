@@ -12,6 +12,7 @@
 
 #include "ast.h"
 #include "errors.hpp"
+#include "result.hpp"
 #include "runtime_value.h"
 #include "variant_utils.hpp"
 
