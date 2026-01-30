@@ -19,8 +19,8 @@ void Environment::set(const std::string& name, const RuntimeValue& value) {
 
 Result<RuntimeValue> Interpreter::run(std::vector<Statement>& stmts) {
     auto r = this->eval_statements(stmts, *this->global_env);
-    if (is_err(r)) return err<RuntimeValue>(std::get<std::shared_ptr<Error>>(r));
-    ExecFlow exec = std::get<ExecFlow>(r);
+    if (is_err(r)) return err<RuntimeValue>(r.error());
+    ExecFlow exec = r.value();
     return std::visit(overloaded{
         [](ExecFlow::None) -> Result<RuntimeValue> {
             return ok(RuntimeValue{ RuntimeValue::Null{} });
@@ -43,35 +43,35 @@ Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Env
         // Assignment
         if (auto a = std::get_if<Statement::Assignment>(&s.value)) {
             auto r = this->eval_expr(a->expr, env.shared_from_this());
-            if (is_err(r)) return err<ExecFlow>(std::get<std::shared_ptr<Error>>(r));
-            env.set(a->name, std::get<RuntimeValue>(r));
+            if (is_err(r)) return err<ExecFlow>(r.error());
+            env.set(a->name, r.value());
             continue;
         }
 
         // If
         if (auto i = std::get_if<Statement::If>(&s.value)) {
             auto cond_r = this->eval_expr(i->condition, env.shared_from_this());
-            if (is_err(cond_r)) return err<ExecFlow>(std::get<std::shared_ptr<Error>>(cond_r));
-            if (is_truthy(std::get<RuntimeValue>(cond_r))) {
+            if (is_err(cond_r)) return err<ExecFlow>(cond_r.error());
+            if (is_truthy(cond_r.value())) {
                 auto child = std::make_shared<Environment>(env.shared_from_this());
                 std::vector<Statement> body_vals;
                 for (auto &sp : i->body) body_vals.push_back(*sp);
                 auto flow = this->eval_statements(body_vals, *child);
-                if (is_err(flow)) return err<ExecFlow>(std::get<std::shared_ptr<Error>>(flow));
-                if (!std::holds_alternative<ExecFlow::None>(std::get<ExecFlow>(flow).value)) return flow;
+                if (is_err(flow)) return err<ExecFlow>(flow.error());
+                if (!std::holds_alternative<ExecFlow::None>(flow.value().value)) return flow;
             } else {
                 bool matched = false;
                 for (auto &el : i->elif) {
                     auto er = this->eval_expr(el.first, env.shared_from_this());
-                    if (is_err(er)) return err<ExecFlow>(std::get<std::shared_ptr<Error>>(er));
-                    if (is_truthy(std::get<RuntimeValue>(er))) {
+                    if (is_err(er)) return err<ExecFlow>(er.error());
+                    if (is_truthy(er.value())) {
                         matched = true;
                         auto child = std::make_shared<Environment>(env.shared_from_this());
                         std::vector<Statement> body_vals;
                         for (auto &sp : el.second) body_vals.push_back(*sp);
                         auto flow = this->eval_statements(body_vals, *child);
-                        if (is_err(flow)) return err<ExecFlow>(std::get<std::shared_ptr<Error>>(flow));
-                        if (!std::holds_alternative<ExecFlow::None>(std::get<ExecFlow>(flow).value)) return flow;
+                        if (is_err(flow)) return err<ExecFlow>(flow.error());
+                        if (!std::holds_alternative<ExecFlow::None>(flow.value().value)) return flow;
                         break;
                     }
                 }
@@ -80,8 +80,8 @@ Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Env
                     std::vector<Statement> body_vals;
                     for (auto &sp : i->else_body) body_vals.push_back(*sp);
                     auto flow = this->eval_statements(body_vals, *child);
-                    if (is_err(flow)) return err<ExecFlow>(std::get<std::shared_ptr<Error>>(flow));
-                    if (!std::holds_alternative<ExecFlow::None>(std::get<ExecFlow>(flow).value)) return flow;
+                    if (is_err(flow)) return err<ExecFlow>(flow.error());
+                    if (!std::holds_alternative<ExecFlow::None>(flow.value().value)) return flow;
                 }
             }
             continue;
@@ -91,16 +91,16 @@ Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Env
         if (auto w = std::get_if<Statement::While>(&s.value)) {
             while (true) {
                 auto cr = this->eval_expr(w->condition, env.shared_from_this());
-                if (is_err(cr)) return err<ExecFlow>(std::get<std::shared_ptr<Error>>(cr));
-                if (!is_truthy(std::get<RuntimeValue>(cr))) break;
+                if (is_err(cr)) return err<ExecFlow>(cr.error());
+                if (!is_truthy(cr.value())) break;
                 auto child = std::make_shared<Environment>(env.shared_from_this());
                 std::vector<Statement> body_vals;
                 for (auto &sp : w->body) body_vals.push_back(*sp);
                 auto flow = this->eval_statements(body_vals, *child);
-                if (is_err(flow)) return err<ExecFlow>(std::get<std::shared_ptr<Error>>(flow));
-                if (std::holds_alternative<ExecFlow::Return>(std::get<ExecFlow>(flow).value)) return flow;
-                if (std::holds_alternative<ExecFlow::Break>(std::get<ExecFlow>(flow).value)) break;
-                if (std::holds_alternative<ExecFlow::Continue>(std::get<ExecFlow>(flow).value)) continue;
+                if (is_err(flow)) return err<ExecFlow>(flow.error());
+                if (std::holds_alternative<ExecFlow::Return>(flow.value().value)) return flow;
+                if (std::holds_alternative<ExecFlow::Break>(flow.value().value)) break;
+                if (std::holds_alternative<ExecFlow::Continue>(flow.value().value)) continue;
             }
             continue;
         }
@@ -108,8 +108,8 @@ Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Env
         // Return
         if (auto r = std::get_if<Statement::Return>(&s.value)) {
             auto vr = this->eval_expr(r->value, env.shared_from_this());
-            if (is_err(vr)) return err<ExecFlow>(std::get<std::shared_ptr<Error>>(vr));
-            ExecFlow out; out.value = ExecFlow::Return{ std::get<RuntimeValue>(vr) };
+            if (is_err(vr)) return err<ExecFlow>(vr.error());
+            ExecFlow out; out.value = ExecFlow::Return{ vr.value() };
             return ok(out);
         }
 
@@ -160,9 +160,9 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
     if (std::holds_alternative<E::UnaryOp>(expr.value)) {
         const auto &u = std::get<E::UnaryOp>(expr.value);
         auto r = this->eval_expr(*u.next, env);
-        if (is_err(r)) return make_err(std::get<std::shared_ptr<Error>>(r));
+        if (is_err(r)) return make_err(r.error());
         if (u.op == Operator::Not) {
-            bool val = is_truthy(std::get<RuntimeValue>(r));
+            bool val = is_truthy(r.value());
             RuntimeValue out; out.value = RuntimeValue::Bool{ !val };
             return ok(out);
         }
@@ -172,8 +172,8 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
     if (std::holds_alternative<E::BinaryOp>(expr.value)) {
         const auto &b = std::get<E::BinaryOp>(expr.value);
         auto lr = this->eval_expr(*b.left, env);
-        if (is_err(lr)) return make_err(std::get<std::shared_ptr<Error>>(lr));
-        RuntimeValue l = std::get<RuntimeValue>(lr);
+        if (is_err(lr)) return make_err(lr.error());
+        RuntimeValue l = lr.value();
 
         // Short-circuiting logical operators implemented here so RHS isn't evaluated unnecessarily
         switch (b.op) {
@@ -181,8 +181,8 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
                 if (!is_truthy(l)) { RuntimeValue out; out.value = RuntimeValue::Bool{ false }; return ok(out); }
                 {
                     auto rr = this->eval_expr(*b.right, env);
-                    if (is_err(rr)) return make_err(std::get<std::shared_ptr<Error>>(rr));
-                    RuntimeValue r = std::get<RuntimeValue>(rr);
+                    if (is_err(rr)) return make_err(rr.error());
+                    RuntimeValue r = rr.value();
                     RuntimeValue out; out.value = RuntimeValue::Bool{ is_truthy(r) };
                     return ok(out);
                 }
@@ -191,8 +191,8 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
                 if (is_truthy(l)) { RuntimeValue out; out.value = RuntimeValue::Bool{ true }; return ok(out); }
                 {
                     auto rr = this->eval_expr(*b.right, env);
-                    if (is_err(rr)) return make_err(std::get<std::shared_ptr<Error>>(rr));
-                    RuntimeValue r = std::get<RuntimeValue>(rr);
+                    if (is_err(rr)) return make_err(rr.error());
+                    RuntimeValue r = rr.value();
                     RuntimeValue out; out.value = RuntimeValue::Bool{ is_truthy(r) };
                     return ok(out);
                 }
@@ -203,8 +203,8 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
 
         // Non-short-circuiting/other operators: evaluate RHS now
         auto rr = this->eval_expr(*b.right, env);
-        if (is_err(rr)) return make_err(std::get<std::shared_ptr<Error>>(rr));
-        RuntimeValue r = std::get<RuntimeValue>(rr);
+        if (is_err(rr)) return make_err(rr.error());
+        RuntimeValue r = rr.value();
 
         switch (b.op) {
             case Operator::Add: {
@@ -277,8 +277,8 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
         std::vector<RuntimeValue> eval_args;
         for (auto &a : fc.args) {
             auto ar = this->eval_expr(*a, env);
-            if (is_err(ar)) return make_err(std::get<std::shared_ptr<Error>>(ar));
-            eval_args.push_back(std::get<RuntimeValue>(ar));
+            if (is_err(ar)) return make_err(ar.error());
+            eval_args.push_back(ar.value());
         }
 
         if (fc.name == "exit") std::exit(0);
@@ -298,9 +298,9 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
                 ++idx;
             }
             auto flow = this->eval_statements(m.body, *child);
-            if (is_err(flow)) return make_err(std::get<std::shared_ptr<Error>>(flow));
-            if (std::holds_alternative<ExecFlow::Return>(std::get<ExecFlow>(flow).value)) {
-                auto ret = std::get<ExecFlow::Return>(std::get<ExecFlow>(flow).value).value;
+            if (is_err(flow)) return make_err(flow.error());
+            if (std::holds_alternative<ExecFlow::Return>(flow.value().value)) {
+                auto ret = std::get<ExecFlow::Return>(flow.value().value).value;
                 if (!std::holds_alternative<AstType::Null>(m.returnType.value)) {
                     if (!matches_type(ret, m.returnType)) {
                         return err<RuntimeValue>(std::make_shared<Error>("function returned value that does not match declared return type", ErrorKind::Type));
@@ -308,13 +308,13 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
                 }
                 return ok(ret);
             }
-            if (std::holds_alternative<ExecFlow::None>(std::get<ExecFlow>(flow).value)) {
+            if (std::holds_alternative<ExecFlow::None>(flow.value().value)) {
                 if (!std::holds_alternative<AstType::Null>(m.returnType.value)) {
                     return err<RuntimeValue>(std::make_shared<Error>("function did not return a value but has declared return type", ErrorKind::Type));
                 }
                 return ok(RuntimeValue{ RuntimeValue::Null{} });
             }
-            if (std::holds_alternative<ExecFlow::Break>(std::get<ExecFlow>(flow).value) || std::holds_alternative<ExecFlow::Continue>(std::get<ExecFlow>(flow).value)) {
+            if (std::holds_alternative<ExecFlow::Break>(flow.value().value) || std::holds_alternative<ExecFlow::Continue>(flow.value().value)) {
                 return err<RuntimeValue>(std::make_shared<Error>("unexpected control flow in function body", ErrorKind::Runtime));
             }
         }
@@ -325,8 +325,8 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
     if (std::holds_alternative<E::Ternary>(expr.value)) {
         auto &t = std::get<E::Ternary>(expr.value);
         auto cr = this->eval_expr(*t.condition, env);
-        if (is_err(cr)) return make_err(std::get<std::shared_ptr<Error>>(cr));
-        if (is_truthy(std::get<RuntimeValue>(cr))) return this->eval_expr(*t.then_expr, env);
+        if (is_err(cr)) return make_err(cr.error());
+        if (is_truthy(cr.value())) return this->eval_expr(*t.then_expr, env);
         else return this->eval_expr(*t.else_expr, env);
     }
 
