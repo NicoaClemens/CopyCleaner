@@ -283,6 +283,36 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
 
         if (fc.name == "exit") std::exit(0);
 
+        if (fc.name == "fstring") {
+            if (eval_args.empty() || !std::holds_alternative<RuntimeValue::String>(eval_args[0].value)) {
+                return err<RuntimeValue>(std::make_shared<Error>("first argument to fstring must be a string template", ErrorKind::Type));
+            }
+            std::string tpl = std::get<RuntimeValue::String>(eval_args[0].value).value;
+            std::string out;
+            for (size_t i = 0; i < tpl.size(); ++i) {
+                char c = tpl[i];
+                if (c == '%' && i + 1 < tpl.size() && std::isdigit(static_cast<unsigned char>(tpl[i+1]))) {
+                    // parse number after '%'
+                    size_t j = i + 1;
+                    int num = 0;
+                    while (j < tpl.size() && std::isdigit(static_cast<unsigned char>(tpl[j]))) {
+                        num = num * 10 + (tpl[j] - '0');
+                        ++j;
+                    }
+                    // placeholder indices are 1-based and refer to following args
+                    if (num >= 1 && static_cast<size_t>(num) < eval_args.size()) {
+                        out += to_string(eval_args[static_cast<size_t>(num)]);
+                    }
+                    // advance i to end of number
+                    i = j - 1;
+                } else {
+                    out.push_back(c);
+                }
+            }
+            RuntimeValue rv; rv.value = RuntimeValue::String{ out };
+            return ok(rv);
+        }
+
         auto it = this->functions.find(fc.name);
         if (it != this->functions.end()) {
             MethodRepr &m = it->second;

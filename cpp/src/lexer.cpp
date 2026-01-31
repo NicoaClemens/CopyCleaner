@@ -205,6 +205,16 @@ Result<Token> Lexer::next_token() {
 
     char c = peek(0);
 
+    // support f-strings: an 'f' immediately followed by a quote
+    if (c == 'f' && (peek(1) == '"' || peek(1) == '\'')) {
+        // consume the 'f' prefix so read_string consumes the quote
+        next_char();
+        Token t = read_string(start);
+        // prepend 'f' to lexeme so parser/runtime can detect it if needed
+        t.lexeme.insert(t.lexeme.begin(), 'f');
+        return ok(t);
+    }
+
     if (std::isdigit(static_cast<unsigned char>(c))) {
         Token t = read_number(start);
         return ok(t);
