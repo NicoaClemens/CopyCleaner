@@ -111,7 +111,7 @@ int number2(0) = add(number, 2)     // 7
 
 ## Error Handling
 
- - No recovery. Any syntax or rutnime error terminates the script immedieately
+ - No recovery. Any syntax or runtime error terminates the script immedieately
 
 ---
 
