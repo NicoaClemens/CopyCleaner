@@ -1,6 +1,6 @@
 // lexer.cpp
 
-#include "../include/lexer.h"
+#include "lexer.h"
 
 #include <cctype>
 #include <string>

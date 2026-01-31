@@ -1,9 +1,9 @@
-// runtime_utils.hpp
+// runtime_utils.h
 #pragma once
 
 #include "types_utils.hpp"
 #include <optional>
-#include "../result.hpp"
+#include "result.hpp"
 
 namespace runtime_utils {
 

@@ -24,7 +24,7 @@ std::unique_ptr<T> clone(const std::unique_ptr<T>& src) {
 template <typename T>
 std::optional<T> clone(const std::optional<T>& src) {
     if (!src) return std::nullopt;
-    return clone(*src);
+    return *src;
 }
 
 /// @brief Deep-copy of a vector of std::unique_ptr
