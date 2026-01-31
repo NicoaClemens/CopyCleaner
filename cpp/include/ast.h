@@ -82,6 +82,8 @@ enum class Operator {
     Or,
     /// Logical Not (!)
     Not,
+    /// Numerical negation (-) unary
+    Neg,
     /// String concat (++)
     Concat,
 };

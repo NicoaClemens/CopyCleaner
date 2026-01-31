@@ -78,7 +78,8 @@ int number2(0) = add(number, 2)     // 7
  - Arithmetic: `** * / + -` 
  - Comparison: `== > < >= <= !=`
  - Logical: `! && ||`
- - Termary: `condition ? value : default`
+ - Ternary: `condition ? value : default`
+ - Unary: `- !` 
  - String concatenation: `++` 
  - No operator overloading.
  - OOE: Arithmetic -> Comparison -> Logical -> Ternary. Inside those categories as listed (`**` before `*` before `/` ...)

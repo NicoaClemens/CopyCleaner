@@ -22,6 +22,5 @@ note: finished todos be removed in most cases, not checked off.
 
 ## general behaviour
 
-- [ ] add '-' as unary operator (numerical negation)
 - [ ] exit() calls std::exit(0) internally -> change to graceful exit
 - [ ] builtin methods (docs/methods.md) -> docs need to be fully fleshed out for ALL builtin methods, builtins must be implemented -> seperate /builtins class and/or folder

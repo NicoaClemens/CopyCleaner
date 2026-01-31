@@ -158,13 +158,29 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
     }
 
     if (std::holds_alternative<E::UnaryOp>(expr.value)) {
+        
         const auto &u = std::get<E::UnaryOp>(expr.value);
         auto r = this->eval_expr(*u.next, env);
         if (is_err(r)) return make_err(r.error());
+
         if (u.op == Operator::Not) {
             bool val = is_truthy(r.value());
             RuntimeValue out; out.value = RuntimeValue::Bool{ !val };
             return ok(out);
+        }
+        if (u.op == Operator::Neg) {
+            // numeric negation
+            if (std::holds_alternative<RuntimeValue::Int>(r.value().value)) {
+                auto v = std::get<RuntimeValue::Int>(r.value().value).value;
+                RuntimeValue out; out.value = RuntimeValue::Int{ -v };
+                return ok(out);
+            }
+            if (std::holds_alternative<RuntimeValue::Float>(r.value().value)) {
+                auto v = std::get<RuntimeValue::Float>(r.value().value).value;
+                RuntimeValue out; out.value = RuntimeValue::Float{ -v };
+                return ok(out);
+            }
+            return err<RuntimeValue>(std::make_shared<Error>("unsupported operand type for unary -", ErrorKind::Type));
         }
         return ok(RuntimeValue{ RuntimeValue::Null{} });
     }
