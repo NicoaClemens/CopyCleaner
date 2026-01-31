@@ -13,32 +13,70 @@
 namespace lexer {
 
 enum class TokenKind {
-    Identifier, Int, Float, String, Bool, Regex,
-    KwFunction, KwReturns, KwIf, KwElif, KwElse,
-    KwWhile, KwReturn, KwBreak, KwContinue,
-    LParen, RParen, LBrace, RBrace, LBracket, RBracket,
-    Comma, Semicolon, Plus, Minus, Star, Slash, Pow, Concat,
-    Eq, Assign, Ne, Gt, Lt, Ge, Le, And, Or, Not,
-    Question, Colon, EndOfFile, Unknown
+    Identifier,
+    Int,
+    Float,
+    String,
+    Bool,
+    Regex,
+    KwFunction,
+    KwReturns,
+    KwIf,
+    KwElif,
+    KwElse,
+    KwWhile,
+    KwReturn,
+    KwBreak,
+    KwContinue,
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    LBracket,
+    RBracket,
+    Comma,
+    Semicolon,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Pow,
+    Concat,
+    Eq,
+    Assign,
+    Ne,
+    Gt,
+    Lt,
+    Ge,
+    Le,
+    And,
+    Or,
+    Not,
+    Question,
+    Colon,
+    EndOfFile,
+    Unknown
 };
-
 
 struct Token {
     TokenKind kind;
-    std::string lexeme; // raw text owned
+    std::string lexeme;  // raw text owned
     Span span;
 
     // Return a copy of the lexeme when a copy is explicitly needed
-    std::string copy_lexeme() const { return lexeme; }
+    std::string copy_lexeme() const {
+        return lexeme;
+    }
 };
 
 class Lexer {
-public:
+   public:
     Lexer(std::string_view source);
 
     Result<Token> next_token();
     bool eof() const;
-private:
+
+   private:
     char peek(size_t offset = 0) const;
     char next_char();
     void skip_whitespace_and_comments();
@@ -56,4 +94,4 @@ private:
     TokenKind last_token_kind_ = TokenKind::Unknown;
 };
 
-} // namespace lexer
+}  // namespace lexer

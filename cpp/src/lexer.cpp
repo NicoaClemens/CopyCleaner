@@ -45,8 +45,8 @@ void Lexer::skip_whitespace_and_comments() {
 
         // comment //
         if (c == '/' && peek(1) == '/') {
-            next_char(); // /
-            next_char(); // /
+            next_char();  // /
+            next_char();  // /
             while (peek(0) != '\n' && peek(0) != '\0') next_char();
             continue;
         }
@@ -76,7 +76,7 @@ Token Lexer::read_number(Pos start) {
     size_t len = pos_ - start_idx;
     auto lex = src_.substr(start_idx, len);
     Pos end{line_, column_};
-    Token t{ is_float ? TokenKind::Float : TokenKind::Int, std::string(lex), Span{start, end} };
+    Token t{is_float ? TokenKind::Float : TokenKind::Int, std::string(lex), Span{start, end}};
     return t;
 }
 
@@ -116,7 +116,7 @@ Token Lexer::read_string(Pos start) {
 
     while (true) {
         char c = peek(0);
-        if (c == '\0') break; // unterminated handled by caller via Result
+        if (c == '\0') break;  // unterminated handled by caller via Result
 
         if (c == '\\') {
             // consume backslash
@@ -125,22 +125,26 @@ Token Lexer::read_string(Pos start) {
             if (n == '\0') break;
             // collapse backslash + newline (including CRLF) -> remove both
             if (n == '\n') {
-                next_char(); // consume newline
+                next_char();  // consume newline
                 continue;
             }
             if (n == '\r') {
-                next_char(); // consume CR
-                if (peek(0) == '\n') next_char(); // consume LF if present
+                next_char();                       // consume CR
+                if (peek(0) == '\n') next_char();  // consume LF if present
                 continue;
             }
             // preserve other escapes (keep backslash and escaped char)
             lex.push_back('\\');
             lex.push_back(n);
-            next_char(); // consume the escaped char
+            next_char();  // consume the escaped char
             continue;
         }
 
-        if (c == quote) { next_char(); lex.push_back(quote); break; }
+        if (c == quote) {
+            next_char();
+            lex.push_back(quote);
+            break;
+        }
         // normal char
         lex.push_back(c);
         next_char();
@@ -153,7 +157,7 @@ Token Lexer::read_string(Pos start) {
 Token Lexer::read_regex(Pos start) {
     // assume leading '/'
     size_t start_idx = pos_;
-    next_char(); // consume '/'
+    next_char();  // consume '/'
     while (true) {
         char c = peek(0);
         if (c == '\0') break;
@@ -162,7 +166,10 @@ Token Lexer::read_regex(Pos start) {
             if (peek(0) != '\0') next_char();
             continue;
         }
-        if (c == '/') { next_char(); break; }
+        if (c == '/') {
+            next_char();
+            break;
+        }
         next_char();
     }
     // flags
@@ -180,39 +187,98 @@ Token Lexer::read_operator_or_punct(Pos start) {
     size_t start_idx = pos_;
 
     // multi-char tokens
-    if (c == '=' && n == '=') { next_char(); next_char(); return Token{TokenKind::Eq, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
-    if (c == '!' && n == '=') { next_char(); next_char(); return Token{TokenKind::Ne, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
-    if (c == '>' && n == '=') { next_char(); next_char(); return Token{TokenKind::Ge, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
-    if (c == '<' && n == '=') { next_char(); next_char(); return Token{TokenKind::Le, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
-    if (c == '&' && n == '&') { next_char(); next_char(); return Token{TokenKind::And, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
-    if (c == '|' && n == '|') { next_char(); next_char(); return Token{TokenKind::Or, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
-    if (c == '*' && n == '*') { next_char(); next_char(); return Token{TokenKind::Pow, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
-    if (c == '+' && n == '+') { next_char(); next_char(); return Token{TokenKind::Concat, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
+    if (c == '=' && n == '=') {
+        next_char();
+        next_char();
+        return Token{TokenKind::Eq, std::string(src_.substr(start_idx, 2)),
+                     Span{start, Pos{line_, column_}}};
+    }
+    if (c == '!' && n == '=') {
+        next_char();
+        next_char();
+        return Token{TokenKind::Ne, std::string(src_.substr(start_idx, 2)),
+                     Span{start, Pos{line_, column_}}};
+    }
+    if (c == '>' && n == '=') {
+        next_char();
+        next_char();
+        return Token{TokenKind::Ge, std::string(src_.substr(start_idx, 2)),
+                     Span{start, Pos{line_, column_}}};
+    }
+    if (c == '<' && n == '=') {
+        next_char();
+        next_char();
+        return Token{TokenKind::Le, std::string(src_.substr(start_idx, 2)),
+                     Span{start, Pos{line_, column_}}};
+    }
+    if (c == '&' && n == '&') {
+        next_char();
+        next_char();
+        return Token{TokenKind::And, std::string(src_.substr(start_idx, 2)),
+                     Span{start, Pos{line_, column_}}};
+    }
+    if (c == '|' && n == '|') {
+        next_char();
+        next_char();
+        return Token{TokenKind::Or, std::string(src_.substr(start_idx, 2)),
+                     Span{start, Pos{line_, column_}}};
+    }
+    if (c == '*' && n == '*') {
+        next_char();
+        next_char();
+        return Token{TokenKind::Pow, std::string(src_.substr(start_idx, 2)),
+                     Span{start, Pos{line_, column_}}};
+    }
+    if (c == '+' && n == '+') {
+        next_char();
+        next_char();
+        return Token{TokenKind::Concat, std::string(src_.substr(start_idx, 2)),
+                     Span{start, Pos{line_, column_}}};
+    }
 
     // single char
     next_char();
     Pos end{line_, column_};
     auto lex = src_.substr(start_idx, 1);
     switch (c) {
-        case '(' : return Token{TokenKind::LParen, std::string(lex), Span{start,end}};
-        case ')' : return Token{TokenKind::RParen, std::string(lex), Span{start,end}};
-        case '{' : return Token{TokenKind::LBrace, std::string(lex), Span{start,end}};
-        case '}' : return Token{TokenKind::RBrace, std::string(lex), Span{start,end}};
-        case '[' : return Token{TokenKind::LBracket, std::string(lex), Span{start,end}};
-        case ']' : return Token{TokenKind::RBracket, std::string(lex), Span{start,end}};
-        case ',' : return Token{TokenKind::Comma, std::string(lex), Span{start,end}};
-        case ';' : return Token{TokenKind::Semicolon, std::string(lex), Span{start,end}};
-        case '+' : return Token{TokenKind::Plus, std::string(lex), Span{start,end}};
-        case '-' : return Token{TokenKind::Minus, std::string(lex), Span{start,end}};
-        case '*' : return Token{TokenKind::Star, std::string(lex), Span{start,end}};
-        case '/' : return Token{TokenKind::Slash, std::string(lex), Span{start,end}};
-        case '=' : return Token{TokenKind::Assign, std::string(lex), Span{start,end}};
-        case '>' : return Token{TokenKind::Gt, std::string(lex), Span{start,end}};
-        case '<' : return Token{TokenKind::Lt, std::string(lex), Span{start,end}};
-        case '!' : return Token{TokenKind::Not, std::string(lex), Span{start,end}};
-        case '?' : return Token{TokenKind::Question, std::string(lex), Span{start,end}};
-        case ':' : return Token{TokenKind::Colon, std::string(lex), Span{start,end}};
-        default: return Token{TokenKind::Unknown, std::string(lex), Span{start,end}};
+        case '(':
+            return Token{TokenKind::LParen, std::string(lex), Span{start, end}};
+        case ')':
+            return Token{TokenKind::RParen, std::string(lex), Span{start, end}};
+        case '{':
+            return Token{TokenKind::LBrace, std::string(lex), Span{start, end}};
+        case '}':
+            return Token{TokenKind::RBrace, std::string(lex), Span{start, end}};
+        case '[':
+            return Token{TokenKind::LBracket, std::string(lex), Span{start, end}};
+        case ']':
+            return Token{TokenKind::RBracket, std::string(lex), Span{start, end}};
+        case ',':
+            return Token{TokenKind::Comma, std::string(lex), Span{start, end}};
+        case ';':
+            return Token{TokenKind::Semicolon, std::string(lex), Span{start, end}};
+        case '+':
+            return Token{TokenKind::Plus, std::string(lex), Span{start, end}};
+        case '-':
+            return Token{TokenKind::Minus, std::string(lex), Span{start, end}};
+        case '*':
+            return Token{TokenKind::Star, std::string(lex), Span{start, end}};
+        case '/':
+            return Token{TokenKind::Slash, std::string(lex), Span{start, end}};
+        case '=':
+            return Token{TokenKind::Assign, std::string(lex), Span{start, end}};
+        case '>':
+            return Token{TokenKind::Gt, std::string(lex), Span{start, end}};
+        case '<':
+            return Token{TokenKind::Lt, std::string(lex), Span{start, end}};
+        case '!':
+            return Token{TokenKind::Not, std::string(lex), Span{start, end}};
+        case '?':
+            return Token{TokenKind::Question, std::string(lex), Span{start, end}};
+        case ':':
+            return Token{TokenKind::Colon, std::string(lex), Span{start, end}};
+        default:
+            return Token{TokenKind::Unknown, std::string(lex), Span{start, end}};
     }
 }
 
@@ -220,7 +286,8 @@ Result<Token> Lexer::next_token() {
     skip_whitespace_and_comments();
 
     if (eof()) {
-        Token t{TokenKind::EndOfFile, std::string(src_.substr(pos_,0)), Span{Pos{line_,column_}, Pos{line_,column_}}};
+        Token t{TokenKind::EndOfFile, std::string(src_.substr(pos_, 0)),
+                Span{Pos{line_, column_}, Pos{line_, column_}}};
         return ok(t);
     }
 
@@ -258,8 +325,9 @@ Result<Token> Lexer::next_token() {
         Token t = read_string(start);
         // detect unterminated crude check: must end with same quote
         if (t.lexeme.size() < 2 || (t.lexeme.front() != '"' && t.lexeme.front() != '\'')) {
-            Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_,column_}}};
-            return err<Token>(std::make_shared<Error>("Unterminated string literal", ErrorKind::Syntax));
+            Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_, column_}}};
+            return err<Token>(
+                std::make_shared<Error>("Unterminated string literal", ErrorKind::Syntax));
         }
         return emit(std::move(t));
     }
@@ -295,9 +363,15 @@ Result<Token> Lexer::next_token() {
         const size_t src_sz = src_.size();
         while (scan_i < src_sz) {
             char cc = src_[scan_i];
-            if (cc == '\\') { scan_i += 2; continue; }
-            if (cc == '/') { found = true; ++scan_i; // consume flags
-                while (scan_i < src_sz && std::isalpha(static_cast<unsigned char>(src_[scan_i]))) ++scan_i;
+            if (cc == '\\') {
+                scan_i += 2;
+                continue;
+            }
+            if (cc == '/') {
+                found = true;
+                ++scan_i;  // consume flags
+                while (scan_i < src_sz && std::isalpha(static_cast<unsigned char>(src_[scan_i])))
+                    ++scan_i;
                 break;
             }
             ++scan_i;
@@ -306,8 +380,9 @@ Result<Token> Lexer::next_token() {
         if (found) {
             Token t = read_regex(start);
             if (t.lexeme.size() < 2 || t.lexeme.front() != '/') {
-                Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_,column_}}};
-                return err<Token>(std::make_shared<Error>("Unterminated regex literal", ErrorKind::Syntax));
+                Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_, column_}}};
+                return err<Token>(
+                    std::make_shared<Error>("Unterminated regex literal", ErrorKind::Syntax));
             }
             return emit(std::move(t));
         }
@@ -321,4 +396,4 @@ Result<Token> Lexer::next_token() {
     return emit(std::move(op));
 }
 
-} // namespace lexer
+}  // namespace lexer

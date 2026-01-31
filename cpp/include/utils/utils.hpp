@@ -41,4 +41,4 @@ std::vector<std::unique_ptr<T>> clone(const std::vector<std::unique_ptr<T>>& src
     }
     return dst;
 }
-}
+}  // namespace utils

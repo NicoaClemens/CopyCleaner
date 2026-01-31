@@ -13,7 +13,6 @@
 #include "runtime_value.h"
 
 struct AstType {
-
     AstType() = default;
     AstType(const AstType& other);
     AstType& operator=(const AstType& other);
@@ -28,15 +27,20 @@ struct AstType {
     struct Regex {};
     struct Match {};
     struct Null {};
-    struct List { std::unique_ptr<AstType> element; };
+    struct List {
+        std::unique_ptr<AstType> element;
+    };
 
-    using Variant = std::variant<
-        Int, Float, Bool, String, Regex, Match, Null, List>;
+    using Variant = std::variant<Int, Float, Bool, String, Regex, Match, Null, List>;
 
     Variant value;
 };
 
-AstType astCreateNull() { auto a = AstType(); a.value = AstType::Null{}; return a; }
+AstType astCreateNull() {
+    auto a = AstType();
+    a.value = AstType::Null{};
+    return a;
+}
 
 enum class Operator {
     /// Addition (+)
@@ -76,8 +80,7 @@ enum class Operator {
 struct Expr;
 using ExprPtr = std::unique_ptr<Expr>;
 struct RuntimeValue;
-struct Expr{
-
+struct Expr {
     Expr() = default;
     Expr(const Expr& other);
     Expr& operator=(const Expr& other);
@@ -85,15 +88,32 @@ struct Expr{
     Expr(Expr&&) noexcept = default;
     Expr& operator=(Expr&&) noexcept = default;
 
-    struct Literal { RuntimeValue value; };
-    struct Variable { std::string name; };
-    struct UnaryOp { Operator op; ExprPtr next; };
-    struct BinaryOp { ExprPtr left; Operator op; ExprPtr right; };
-    struct FunctionCall { std::string name; std::vector<ExprPtr> args; };
-    struct Ternary { ExprPtr condition; ExprPtr then_expr; ExprPtr else_expr; };
+    struct Literal {
+        RuntimeValue value;
+    };
+    struct Variable {
+        std::string name;
+    };
+    struct UnaryOp {
+        Operator op;
+        ExprPtr next;
+    };
+    struct BinaryOp {
+        ExprPtr left;
+        Operator op;
+        ExprPtr right;
+    };
+    struct FunctionCall {
+        std::string name;
+        std::vector<ExprPtr> args;
+    };
+    struct Ternary {
+        ExprPtr condition;
+        ExprPtr then_expr;
+        ExprPtr else_expr;
+    };
 
-    using Variant = std::variant<
-        Literal, Variable, UnaryOp, BinaryOp, FunctionCall, Ternary>;
+    using Variant = std::variant<Literal, Variable, UnaryOp, BinaryOp, FunctionCall, Ternary>;
 
     Span span;
     Variant value;
@@ -102,15 +122,17 @@ struct Expr{
 struct Statement;
 using StmtPtr = std::unique_ptr<Statement>;
 struct Statement {
-
     Statement() = default;
     Statement(const Statement& other);
     Statement& operator=(const Statement& other);
-    
+
     Statement(Statement&&) noexcept = default;
     Statement& operator=(Statement&&) noexcept = default;
 
-    struct Assignment { std::string name; Expr expr; };
+    struct Assignment {
+        std::string name;
+        Expr expr;
+    };
 
     struct If {
         Expr condition;
@@ -119,9 +141,14 @@ struct Statement {
         std::vector<StmtPtr> else_body;
     };
 
-    struct While { Expr condition; std::vector<StmtPtr> body; };
+    struct While {
+        Expr condition;
+        std::vector<StmtPtr> body;
+    };
 
-    struct Return { Expr value; };
+    struct Return {
+        Expr value;
+    };
 
     struct FunctionDef {
         std::string name;
@@ -133,8 +160,7 @@ struct Statement {
     struct Break {};
     struct Continue {};
 
-    using Variant = std::variant<
-        Assignment, If, While, Return, FunctionDef, Break, Continue>;
+    using Variant = std::variant<Assignment, If, While, Return, FunctionDef, Break, Continue>;
 
     Variant value;
 };

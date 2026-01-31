@@ -5,7 +5,8 @@ UseTab: Never
 ColumnLimit: 100
 BreakBeforeBraces: Attach
 AllowShortFunctionsOnASingleLine: Empty
-PointerBinding: Left
+PointerAlignment: Left
+ReferenceAlignment: Left
 DerivePointerBinding: false
 SortIncludes: true
 AllowShortIfStatementsOnASingleLine: true

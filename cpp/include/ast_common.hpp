@@ -9,8 +9,12 @@ struct Pos {
     std::size_t line;
     std::size_t column;
 
-    bool operator==(const Pos& other) const { return (line == other.line) && (column == other.column); }
-    bool operator!=(const Pos& other) const { return !operator==(other); }
+    bool operator==(const Pos& other) const {
+        return (line == other.line) && (column == other.column);
+    }
+    bool operator!=(const Pos& other) const {
+        return !operator==(other);
+    }
 };
 
 struct Span {
