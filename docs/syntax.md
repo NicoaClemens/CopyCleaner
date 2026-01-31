@@ -25,7 +25,7 @@
   - Explicit conversion syntax: `newType myVar(oldVar);`
 - empty initialiser defaults to null
 - strings are encapsulated by " ", regexes by \ \, lists by { }
-- Variable assignment using = allowed, but initialisiation must be via `int n(4)` or `int n() = {expression}`
+- Variable assignment using = allowed, but initialization must be via `int n(4)` or `int n() = {expression}`
   
 | Type | Example | Notes / Members / Methods |
 | ---- | ------- | ------------------------- |
@@ -49,7 +49,7 @@ function name returns type(type1 arg1, ...) { ...; return value; };
 
  - Typed arguments and return values.
  - NO overloading or default arguments.
- - Variables must be declared before assignmen
+ - Variables must be declared before assignment
  - Example:
 
 ```cpp
@@ -85,7 +85,7 @@ int number2(0) = add(number, 2)     // 7
  - OOE: Arithmetic -> Comparison -> Logical -> Ternary. Inside those categories as listed (`**` before `*` before `/` ...)
 
 ### Notes
- - dividing int by int truncates to int -> if float result is resired, cast one value to float beforehand
+ - dividing int by int truncates to int -> if float result is desired, cast one value to float beforehand
 
 ## Control Flow
 
@@ -111,12 +111,12 @@ int number2(0) = add(number, 2)     // 7
 
 ## Error Handling
 
- - No recovery. Any syntax or runtime error terminates the script immedieately
+ - No recovery. Any syntax or runtime error terminates the script immediately
 
 ---
 
 ## Notes
 
  - Everything must be in a single file; no includes or external modules.
- - All pre-defined functions are to be documented seperately.
+ - All pre-defined functions are to be documented separately.
  - setEncoding() method must be called at top of file before logging (file, console), alerts or clipboard reading/writing is ever called

@@ -17,14 +17,12 @@ Top of file (not strict)
   - second line: `// Implements <header file>` 
 After that, one free line, then includes
 
-Include paths and order
 - Order includes in each file:
-  1. (cpp only) include of corresponding header file
-  2. Standard library headers
-  3. Third-party/library headers
-  4. Project headers (sorted alphabetically)
-- one free line between each of these
-- Inside these alphabetically
+  1. (cpp only) Corresponding header file
+  2. Standard library headers (alphabetically sorted)
+  3. Third-party/library headers (alphabetically sorted)
+  4. Project headers (alphabetically sorted)
+- One blank line between each group
 
 Header contents
 - Use `#pragma once` in all headers.
