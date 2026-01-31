@@ -108,23 +108,45 @@ Token Lexer::read_identifier_or_keyword(Pos start) {
 
 Token Lexer::read_string(Pos start) {
     char quote = peek(0);
-    size_t start_idx = pos_;
-    next_char(); // consume opening quote
+    // consume opening quote
+    next_char();
+    std::string lex;
+    lex.push_back(quote);
+
     while (true) {
         char c = peek(0);
         if (c == '\0') break; // unterminated handled by caller via Result
+
         if (c == '\\') {
-            next_char(); // consume backslash
-            if (peek(0) != '\0') next_char();
+            // consume backslash
+            next_char();
+            char n = peek(0);
+            if (n == '\0') break;
+            // collapse backslash + newline (including CRLF) -> remove both
+            if (n == '\n') {
+                next_char(); // consume newline
+                continue;
+            }
+            if (n == '\r') {
+                next_char(); // consume CR
+                if (peek(0) == '\n') next_char(); // consume LF if present
+                continue;
+            }
+            // preserve other escapes (keep backslash and escaped char)
+            lex.push_back('\\');
+            lex.push_back(n);
+            next_char(); // consume the escaped char
             continue;
         }
-        if (c == quote) { next_char(); break; }
+
+        if (c == quote) { next_char(); lex.push_back(quote); break; }
+        // normal char
+        lex.push_back(c);
         next_char();
     }
-    size_t len = pos_ - start_idx;
-    auto lex = src_.substr(start_idx, len);
+
     Pos end{line_, column_};
-    return Token{TokenKind::String, std::string(lex), Span{start, end}};
+    return Token{TokenKind::String, std::move(lex), Span{start, end}};
 }
 
 Token Lexer::read_regex(Pos start) {
