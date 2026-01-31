@@ -31,14 +31,19 @@ class Result {
         return std::holds_alternative<std::shared_ptr<Error>>(data_);
     }
 
+    /// @brief gets Value. Asserts Result is ok first
     T& value() & {
         assert(is_ok());
         return std::get<T>(data_);
     }
+
+    /// @brief gets Value reference. Asserts Result is ok first
     const T& value() const& {
         assert(is_ok());
         return std::get<T>(data_);
     }
+
+    /// @brief gets Value. Asserts Result is ok first
     T&& value() && {
         assert(is_ok());
         return std::get<T>(std::move(data_));

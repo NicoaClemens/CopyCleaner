@@ -13,6 +13,11 @@
 #include "ast.h"
 #include "runtime_value.h"
 
+/// @brief Checks if values of two `RuntimeValue` objects are identical. Allows for comparison
+/// between float and int
+/// @param a left
+/// @param b right
+/// @return true if value is equivalent, else false
 inline bool operator==(const RuntimeValue& a, const RuntimeValue& b) {
     // If types differ, allow implicit numeric comparison between Int and Float
     if (a.value.index() != b.value.index()) {
@@ -63,8 +68,6 @@ inline bool operator==(const RuntimeValue& a, const RuntimeValue& b) {
             return false;
     }
 }
-
-inline std::string to_string(const RuntimeValue& v);
 
 inline std::string to_string(const RuntimeValue& v) {
     return std::visit(

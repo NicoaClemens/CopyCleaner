@@ -36,6 +36,8 @@ struct AstType {
     Variant value;
 };
 
+/// @brief creates an AstType object with `value` set to AstType::Null
+/// @return AstType with value set to AstType::Null
 inline AstType astCreateNull() {
     auto a = AstType();
     a.value = AstType::Null{};

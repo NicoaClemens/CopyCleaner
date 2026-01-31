@@ -39,7 +39,8 @@ Small conventions
 
 Documentation
 
-- Use doxygen-style docstrings exclusively
+- Use doxygen-style docstrings exclusively (/// @brief, /// @param, etc)
 - Docstrings should be added for all public APIs
 - document non-obvious behaviour, side effects, preconditions
 - don't add docstrings for private methods, self-explanatory methods like getter/setters or methods where the name and signature explain behaviour
+- only add docstrings at declaration, not again for implementation

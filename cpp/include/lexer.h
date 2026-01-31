@@ -60,10 +60,9 @@ enum class TokenKind {
 
 struct Token {
     TokenKind kind;
-    std::string lexeme;  // raw text owned
+    std::string lexeme;
     Span span;
 
-    // Return a copy of the lexeme when a copy is explicitly needed
     std::string copy_lexeme() const {
         return lexeme;
     }

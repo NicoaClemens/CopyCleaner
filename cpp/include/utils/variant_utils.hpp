@@ -5,6 +5,8 @@
 
 #include <variant>
 
+/// @brief helper for variant visit
+/// @tparam ...Ts
 template <class... Ts>
 struct overloaded : Ts... {
     using Ts::operator()...;

@@ -9,6 +9,7 @@
 #include "result.hpp"
 #include "types_utils.hpp"
 
+/// @brief utility functions for runtime.cpp
 namespace runtime_utils {
 
 std::optional<double> to_f64(const RuntimeValue& v);

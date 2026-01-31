@@ -7,6 +7,7 @@
 #include <optional>
 #include <vector>
 
+/// @brief General, non-specific utils
 namespace utils {
 
 /// @brief Deep-copy of a std::unique_ptr
