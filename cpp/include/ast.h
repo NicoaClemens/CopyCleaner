@@ -36,7 +36,7 @@ struct AstType {
     Variant value;
 };
 
-AstType astCreateNull() {
+inline AstType astCreateNull() {
     auto a = AstType();
     a.value = AstType::Null{};
     return a;
