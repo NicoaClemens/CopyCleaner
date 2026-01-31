@@ -37,5 +37,9 @@ Small conventions
 - Filename case: lower_snake_case for files and directories.
 - Use `camelCase` for local variables, `snake_case` for file names.
 
+Documentation
 
-
+- Use doxygen-style docstrings exclusively
+- Docstrings should be added for all public APIs
+- document non-obvious behaviour, side effects, preconditions
+- don't add docstrings for private methods, self-explanatory methods like getter/setters or methods where the name and signature explain behaviour
