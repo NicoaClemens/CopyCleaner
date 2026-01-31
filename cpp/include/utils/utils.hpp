@@ -8,7 +8,7 @@
 
 namespace utils {
 
-/// @brief Deep-copy of a std::unqiue_ptr
+/// @brief Deep-copy of a std::unique_ptr
 /// @tparam T Copy-constructible type
 /// @param src Source pointer
 /// @return new unique_ptr owning a copy of *src or nullptr if src is null
