@@ -1,6 +1,8 @@
 // ast.cpp
+// Implements ast.h
 
 #include "ast.h"
+
 #include "utils.hpp"
 
 AstType::AstType(const AstType& other) {

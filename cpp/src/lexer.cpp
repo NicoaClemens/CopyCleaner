@@ -1,4 +1,5 @@
 // lexer.cpp
+// Implements lexer.h
 
 #include "lexer.h"
 

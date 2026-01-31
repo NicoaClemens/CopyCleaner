@@ -1,4 +1,5 @@
 // runtime_value.h
+// Declares: RegexType, RuntimeValue
 
 #pragma once
 

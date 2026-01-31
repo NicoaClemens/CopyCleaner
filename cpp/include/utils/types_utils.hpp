@@ -1,9 +1,10 @@
-// types.hpp
+// types_utils.hpp
+// Declares/Implements: operator==, to_string, is_truthy, matches_type
 
 #pragma once
 
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <variant>

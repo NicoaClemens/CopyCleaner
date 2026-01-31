@@ -1,11 +1,13 @@
 // runtime.cpp
+// Implements runtime.h
+
+#include "runtime.h"
 
 #include <cmath>
 #include <cstdlib>
 
-#include "runtime.h"
-#include "types_utils.hpp"
 #include "runtime_utils.h"
+#include "types_utils.hpp"
 
 std::optional<RuntimeValue> Environment::get(const std::string& name) {
     if (variables.contains(name)) return variables[name];
@@ -158,7 +160,7 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
     }
 
     if (std::holds_alternative<E::UnaryOp>(expr.value)) {
-        
+
         const auto &u = std::get<E::UnaryOp>(expr.value);
         auto r = this->eval_expr(*u.next, env);
         if (is_err(r)) return make_err(r.error());

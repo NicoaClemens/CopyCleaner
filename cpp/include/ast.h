@@ -1,4 +1,5 @@
 // ast.h
+// Declares: AstType, Operator, Expr, Statement
 
 #pragma once
 
@@ -8,26 +9,8 @@
 #include <variant>
 #include <vector>
 
+#include "ast_common.hpp"
 #include "runtime_value.h"
-
-struct Pos {
-    std::size_t line;
-    std::size_t column;
-
-    bool operator==(const Pos& other) const { return (line == other.line) && (column == other.column); }
-    bool operator!=(const Pos& other) const { return !operator==(other); }
-};
-
-struct Span {
-    Pos p1;
-    Pos p2;
-};
-
-template <typename T>
-struct Node {
-    T value;
-    Span s;
-};
 
 struct AstType {
 

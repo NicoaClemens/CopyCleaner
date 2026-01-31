@@ -1,14 +1,15 @@
 // errors.hpp
+// Declares/Implements: ErrorKind, Error
 
 #pragma once
 
 #include <format>
 #include <optional>
-#include <string>
 #include <sstream>
+#include <string>
 #include <utility>
 
-#include "ast.h"
+#include "ast_common.hpp"
 
 enum class ErrorKind {
     Runtime, Syntax, Type, Arity, DivideByZero
@@ -37,7 +38,7 @@ public:
 
     Error(std::string message, const Span& span, ErrorKind kind = ErrorKind::Runtime)
         : message_(std::move(message)), kind_(kind), span_(span) {}
-        
+
     const std::string& what() const noexcept { return message_; }
     ErrorKind kind() const noexcept { return kind_; }
     std::string kind_name() const noexcept { return to_string(kind_); }

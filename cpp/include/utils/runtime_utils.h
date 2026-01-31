@@ -1,9 +1,12 @@
 // runtime_utils.h
+// Declares: to_f64, numeric_add, numeric_sub, numeric_mul, numeric_div, numeric_pow, bool_and, bool_or, concat, compare_gt, compare_lt, compare_ge, compare_le
+
 #pragma once
 
-#include "types_utils.hpp"
 #include <optional>
+
 #include "result.hpp"
+#include "types_utils.hpp"
 
 namespace runtime_utils {
 

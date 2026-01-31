@@ -1,9 +1,12 @@
 // result.hpp
+// Declares/Implements: Result, ok, err, is_ok, is_err
+
 #pragma once
-#include <memory>
-#include <variant>
-#include <type_traits>
+
 #include <cassert>
+#include <memory>
+#include <type_traits>
+#include <variant>
 
 #include "errors.hpp"
 

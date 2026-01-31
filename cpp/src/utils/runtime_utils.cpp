@@ -1,7 +1,8 @@
 // runtime_utils.cpp
-
+// Implements runtime_utils.h
 
 #include "runtime_utils.h"
+
 #include <cmath>
 
 namespace runtime_utils {
