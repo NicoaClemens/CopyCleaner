@@ -24,10 +24,11 @@ enum class TokenKind {
 
 struct Token {
     TokenKind kind;
-    std::string_view lexeme; // raw text
+    std::string lexeme; // raw text owned
     Span span;
 
-    std::string copy_lexeme() const { return std::string(lexeme); }
+    // Return a copy of the lexeme when a copy is explicitly needed
+    std::string copy_lexeme() const { return lexeme; }
 };
 
 class Lexer {

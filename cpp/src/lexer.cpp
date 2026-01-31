@@ -75,7 +75,7 @@ Token Lexer::read_number(Pos start) {
     size_t len = pos_ - start_idx;
     auto lex = src_.substr(start_idx, len);
     Pos end{line_, column_};
-    Token t{ is_float ? TokenKind::Float : TokenKind::Int, lex, Span{start, end} };
+    Token t{ is_float ? TokenKind::Float : TokenKind::Int, std::string(lex), Span{start, end} };
     return t;
 }
 
@@ -103,7 +103,7 @@ Token Lexer::read_identifier_or_keyword(Pos start) {
     auto it = kw.find(s);
     TokenKind kind = (it != kw.end()) ? it->second : TokenKind::Identifier;
     Pos end{line_, column_};
-    return Token{kind, lex, Span{start, end}};
+    return Token{kind, std::string(lex), Span{start, end}};
 }
 
 Token Lexer::read_string(Pos start) {
@@ -124,7 +124,7 @@ Token Lexer::read_string(Pos start) {
     size_t len = pos_ - start_idx;
     auto lex = src_.substr(start_idx, len);
     Pos end{line_, column_};
-    return Token{TokenKind::String, lex, Span{start, end}};
+    return Token{TokenKind::String, std::string(lex), Span{start, end}};
 }
 
 Token Lexer::read_regex(Pos start) {
@@ -148,7 +148,7 @@ Token Lexer::read_regex(Pos start) {
     size_t len = pos_ - start_idx;
     auto lex = src_.substr(start_idx, len);
     Pos end{line_, column_};
-    return Token{TokenKind::Regex, lex, Span{start, end}};
+    return Token{TokenKind::Regex, std::string(lex), Span{start, end}};
 }
 
 Token Lexer::read_operator_or_punct(Pos start) {
@@ -157,39 +157,39 @@ Token Lexer::read_operator_or_punct(Pos start) {
     size_t start_idx = pos_;
 
     // multi-char tokens
-    if (c == '=' && n == '=') { next_char(); next_char(); return Token{TokenKind::Eq, src_.substr(start_idx,2), Span{start, Pos{line_,column_}}}; }
-    if (c == '!' && n == '=') { next_char(); next_char(); return Token{TokenKind::Ne, src_.substr(start_idx,2), Span{start, Pos{line_,column_}}}; }
-    if (c == '>' && n == '=') { next_char(); next_char(); return Token{TokenKind::Ge, src_.substr(start_idx,2), Span{start, Pos{line_,column_}}}; }
-    if (c == '<' && n == '=') { next_char(); next_char(); return Token{TokenKind::Le, src_.substr(start_idx,2), Span{start, Pos{line_,column_}}}; }
-    if (c == '&' && n == '&') { next_char(); next_char(); return Token{TokenKind::And, src_.substr(start_idx,2), Span{start, Pos{line_,column_}}}; }
-    if (c == '|' && n == '|') { next_char(); next_char(); return Token{TokenKind::Or, src_.substr(start_idx,2), Span{start, Pos{line_,column_}}}; }
-    if (c == '*' && n == '*') { next_char(); next_char(); return Token{TokenKind::Pow, src_.substr(start_idx,2), Span{start, Pos{line_,column_}}}; }
-    if (c == '+' && n == '+') { next_char(); next_char(); return Token{TokenKind::Concat, src_.substr(start_idx,2), Span{start, Pos{line_,column_}}}; }
+    if (c == '=' && n == '=') { next_char(); next_char(); return Token{TokenKind::Eq, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
+    if (c == '!' && n == '=') { next_char(); next_char(); return Token{TokenKind::Ne, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
+    if (c == '>' && n == '=') { next_char(); next_char(); return Token{TokenKind::Ge, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
+    if (c == '<' && n == '=') { next_char(); next_char(); return Token{TokenKind::Le, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
+    if (c == '&' && n == '&') { next_char(); next_char(); return Token{TokenKind::And, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
+    if (c == '|' && n == '|') { next_char(); next_char(); return Token{TokenKind::Or, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
+    if (c == '*' && n == '*') { next_char(); next_char(); return Token{TokenKind::Pow, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
+    if (c == '+' && n == '+') { next_char(); next_char(); return Token{TokenKind::Concat, std::string(src_.substr(start_idx,2)), Span{start, Pos{line_,column_}}}; }
 
     // single char
     next_char();
     Pos end{line_, column_};
     auto lex = src_.substr(start_idx, 1);
     switch (c) {
-        case '(' : return Token{TokenKind::LParen, lex, Span{start,end}};
-        case ')' : return Token{TokenKind::RParen, lex, Span{start,end}};
-        case '{' : return Token{TokenKind::LBrace, lex, Span{start,end}};
-        case '}' : return Token{TokenKind::RBrace, lex, Span{start,end}};
-        case '[' : return Token{TokenKind::LBracket, lex, Span{start,end}};
-        case ']' : return Token{TokenKind::RBracket, lex, Span{start,end}};
-        case ',' : return Token{TokenKind::Comma, lex, Span{start,end}};
-        case ';' : return Token{TokenKind::Semicolon, lex, Span{start,end}};
-        case '+' : return Token{TokenKind::Plus, lex, Span{start,end}};
-        case '-' : return Token{TokenKind::Minus, lex, Span{start,end}};
-        case '*' : return Token{TokenKind::Star, lex, Span{start,end}};
-        case '/' : return Token{TokenKind::Slash, lex, Span{start,end}};
-        case '=' : return Token{TokenKind::Assign, lex, Span{start,end}};
-        case '>' : return Token{TokenKind::Gt, lex, Span{start,end}};
-        case '<' : return Token{TokenKind::Lt, lex, Span{start,end}};
-        case '!' : return Token{TokenKind::Not, lex, Span{start,end}};
-        case '?' : return Token{TokenKind::Question, lex, Span{start,end}};
-        case ':' : return Token{TokenKind::Colon, lex, Span{start,end}};
-        default: return Token{TokenKind::Unknown, lex, Span{start,end}};
+        case '(' : return Token{TokenKind::LParen, std::string(lex), Span{start,end}};
+        case ')' : return Token{TokenKind::RParen, std::string(lex), Span{start,end}};
+        case '{' : return Token{TokenKind::LBrace, std::string(lex), Span{start,end}};
+        case '}' : return Token{TokenKind::RBrace, std::string(lex), Span{start,end}};
+        case '[' : return Token{TokenKind::LBracket, std::string(lex), Span{start,end}};
+        case ']' : return Token{TokenKind::RBracket, std::string(lex), Span{start,end}};
+        case ',' : return Token{TokenKind::Comma, std::string(lex), Span{start,end}};
+        case ';' : return Token{TokenKind::Semicolon, std::string(lex), Span{start,end}};
+        case '+' : return Token{TokenKind::Plus, std::string(lex), Span{start,end}};
+        case '-' : return Token{TokenKind::Minus, std::string(lex), Span{start,end}};
+        case '*' : return Token{TokenKind::Star, std::string(lex), Span{start,end}};
+        case '/' : return Token{TokenKind::Slash, std::string(lex), Span{start,end}};
+        case '=' : return Token{TokenKind::Assign, std::string(lex), Span{start,end}};
+        case '>' : return Token{TokenKind::Gt, std::string(lex), Span{start,end}};
+        case '<' : return Token{TokenKind::Lt, std::string(lex), Span{start,end}};
+        case '!' : return Token{TokenKind::Not, std::string(lex), Span{start,end}};
+        case '?' : return Token{TokenKind::Question, std::string(lex), Span{start,end}};
+        case ':' : return Token{TokenKind::Colon, std::string(lex), Span{start,end}};
+        default: return Token{TokenKind::Unknown, std::string(lex), Span{start,end}};
     }
 }
 
@@ -197,7 +197,7 @@ Result<Token> Lexer::next_token() {
     skip_whitespace_and_comments();
 
     if (eof()) {
-        Token t{TokenKind::EndOfFile, src_.substr(pos_,0), Span{Pos{line_,column_}, Pos{line_,column_}}};
+        Token t{TokenKind::EndOfFile, std::string(src_.substr(pos_,0)), Span{Pos{line_,column_}, Pos{line_,column_}}};
         return ok(t);
     }
 

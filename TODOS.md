@@ -17,8 +17,6 @@ note: finished todos be removed in most cases, not checked off.
 Solution: either check if current expression has a closing \ tag => may be complicated to implement OR change division operator => simpler but makes it more unintuivite
 - [ ] add fstring to parser
 - [ ] lexer consumes backslash + next-char inside strings but does not collapse backslash + newline into "no newline" at lexing time
-- [ ] change type of Token.lexeme to std::string? 
-- [ ] Function call argument count mismatch returns OK / null -> change to error 
 - [ ] numeric_pow might overflow -> irrelevant? (a) when would that matter (b) it's for the user to worry about -> add documentation when it will overflow
 
 ## new classes
