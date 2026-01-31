@@ -51,6 +51,8 @@ private:
     size_t pos_ = 0;
     size_t line_ = 1;
     size_t column_ = 1;
+    
+    TokenKind last_token_kind_ = TokenKind::Unknown;
 };
 
 } // namespace lexer

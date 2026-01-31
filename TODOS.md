@@ -13,9 +13,7 @@ note: finished todos be removed in most cases, not checked off.
 - [ ] plan helper tool that allows to easily call scripts on shortcuts or per taskbar or hwatever
 
 ## smaller todos
-- [ ] lexer treats any / that is not // as the start of a regex => division operator is unreachable.
-Solution: either check if current expression has a closing \ tag => may be complicated to implement OR change division operator => simpler but makes it more unintuivite
-- [ ] numeric_pow might overflow -> irrelevant? (a) when would that matter (b) it's for the user to worry about -> add documentation when it will overflow
+
 
 ## new classes
 

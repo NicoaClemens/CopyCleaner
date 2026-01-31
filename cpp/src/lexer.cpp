@@ -227,6 +227,12 @@ Result<Token> Lexer::next_token() {
 
     char c = peek(0);
 
+    // helper that records last token kind and returns Result<Token>
+    auto emit = [&](Token t) -> Result<Token> {
+        this->last_token_kind_ = t.kind;
+        return ok(std::move(t));
+    };
+
     // support f-strings: an 'f' immediately followed by a quote
     if (c == 'f' && (peek(1) == '"' || peek(1) == '\'')) {
         // consume the 'f' prefix so read_string consumes the quote
@@ -234,17 +240,17 @@ Result<Token> Lexer::next_token() {
         Token t = read_string(start);
         // prepend 'f' to lexeme so parser/runtime can detect it if needed
         t.lexeme.insert(t.lexeme.begin(), 'f');
-        return ok(t);
+        return emit(std::move(t));
     }
 
     if (std::isdigit(static_cast<unsigned char>(c))) {
         Token t = read_number(start);
-        return ok(t);
+        return emit(std::move(t));
     }
 
     if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
         Token t = read_identifier_or_keyword(start);
-        return ok(t);
+        return emit(std::move(t));
     }
 
     if (c == '"' || c == '\'') {
@@ -254,23 +260,64 @@ Result<Token> Lexer::next_token() {
             Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_,column_}}};
             return err<Token>(std::make_shared<Error>("Unterminated string literal", ErrorKind::Syntax));
         }
-        return ok(t);
+        return emit(std::move(t));
     }
 
-    // Regex or slash/operator
+    // Regex or slash/operator: use context heuristic
     if (c == '/' && peek(1) != '/') {
-        Token t = read_regex(start);
-        // crude unterminated check: regex lexeme must contain at least one '/'
-        if (t.lexeme.size() < 2 || t.lexeme.front() != '/') {
-            Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_,column_}}};
-            return err<Token>(std::make_shared<Error>("Unterminated regex literal", ErrorKind::Syntax));
+        auto ends_expr = [](TokenKind k) -> bool {
+            switch (k) {
+                case TokenKind::Identifier:
+                case TokenKind::Int:
+                case TokenKind::Float:
+                case TokenKind::String:
+                case TokenKind::Bool:
+                case TokenKind::Regex:
+                case TokenKind::RParen:
+                case TokenKind::RBracket:
+                case TokenKind::RBrace:
+                case TokenKind::EndOfFile:
+                    return true;
+                default:
+                    return false;
+            }
+        };
+
+        if (ends_expr(this->last_token_kind_)) {
+            Token op = read_operator_or_punct(start);
+            return emit(std::move(op));
         }
-        return ok(t);
+
+        // Try a quick forward scan for an unescaped closing '/'
+        size_t scan_i = pos_ + 1;
+        bool found = false;
+        const size_t src_sz = src_.size();
+        while (scan_i < src_sz) {
+            char cc = src_[scan_i];
+            if (cc == '\\') { scan_i += 2; continue; }
+            if (cc == '/') { found = true; ++scan_i; // consume flags
+                while (scan_i < src_sz && std::isalpha(static_cast<unsigned char>(src_[scan_i]))) ++scan_i;
+                break;
+            }
+            ++scan_i;
+        }
+
+        if (found) {
+            Token t = read_regex(start);
+            if (t.lexeme.size() < 2 || t.lexeme.front() != '/') {
+                Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_,column_}}};
+                return err<Token>(std::make_shared<Error>("Unterminated regex literal", ErrorKind::Syntax));
+            }
+            return emit(std::move(t));
+        }
+
+        Token op = read_operator_or_punct(start);
+        return emit(std::move(op));
     }
 
     // otherwise operators/punct
     Token op = read_operator_or_punct(start);
-    return ok(op);
+    return emit(std::move(op));
 }
 
 } // namespace lexer
