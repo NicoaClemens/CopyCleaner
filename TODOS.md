@@ -31,8 +31,3 @@ note: finished todos be removed in most cases, not checked off.
 ## code quality issues
 
 - [ ] incomplete documentation sections in docs/methods.md: "## Logger" and "## Alert" have no content
-- [ ] docs/syntax.md describes variable declaration syntax (int n(4)) but there's no VarDeclaration statement type in AST - only Assignment exists. Need to implement proper variable declarations vs assignments
-- [ ] docs/syntax.md says type is "boolean" but the AST uses "Bool" - inconsistency in naming
-- [ ] docs/syntax.md describes regex methods (.getAll) and list methods (.get) but these are not implemented in runtime
-- [ ] docs/syntax.md describes match type with .start, .end, .content but no member access is implemented in the interpreter
-- [ ] docs/syntax.md describes member access (.) but Expr enum has no MemberAccess variant
