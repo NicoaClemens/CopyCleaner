@@ -53,6 +53,8 @@ struct AstType {
     Variant value;
 };
 
+AstType astCreateNull() { auto a = AstType(); a.value = AstType::Null{}; return a; }
+
 enum class Operator {
     /// Addition (+)
     Add,
