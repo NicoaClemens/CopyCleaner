@@ -69,6 +69,18 @@ inline bool operator==(const RuntimeValue& a, const RuntimeValue& b) {
     }
 }
 
+/// @brief Checks if values of two `RuntimeValue` objects are not identical
+/// @param a left
+/// @param b right
+/// @return true if values are different, else false
+inline bool operator!=(const RuntimeValue& a, const RuntimeValue& b) {
+    return !(a == b);
+}
+
+/// @brief Converts a RuntimeValue to its string representation
+/// @param v The RuntimeValue to convert
+/// @return String representation of the value (numbers as digits, bools as "true"/"false", lists
+/// with brackets, etc.)
 inline std::string to_string(const RuntimeValue& v) {
     return std::visit(
         [](const auto& val) -> std::string {
@@ -111,6 +123,10 @@ inline std::string to_string(const RuntimeValue& v) {
         v.value);
 }
 
+/// @brief Determines if a RuntimeValue evaluates to true in a boolean context
+/// @param v The RuntimeValue to check
+/// @return true for: true bools, non-zero numbers, non-empty strings/lists, all matches/regexes.
+/// false for: false bools, zero numbers, empty strings/lists, and null
 inline bool is_truthy(const RuntimeValue& v) {
     return std::visit(
         [](const auto& val) -> bool {
@@ -146,6 +162,11 @@ inline bool is_truthy(const RuntimeValue& v) {
         v.value);
 }
 
+/// @brief Checks if a RuntimeValue's type matches an expected AstType
+/// @param v The RuntimeValue to check
+/// @param t The AstType to match against
+/// @return true if the runtime value's type matches the AST type. Allows implicit int<->float
+/// conversions. For lists, validates element types if specified
 inline bool matches_type(const RuntimeValue& v, const AstType& t) {
     return std::visit(
         [&](const auto& val) -> bool {

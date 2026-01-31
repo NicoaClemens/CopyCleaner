@@ -23,6 +23,7 @@ class Parser {
     // Statement parsing
     Result<Statement> parse_statement();
     Result<Statement> parse_assignment();
+    Result<Statement> parse_var_declaration();
     Result<Statement> parse_if_statement();
     Result<Statement> parse_while_statement();
     Result<Statement> parse_function_def();

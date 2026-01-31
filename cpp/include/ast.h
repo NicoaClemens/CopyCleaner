@@ -114,8 +114,15 @@ struct Expr {
         ExprPtr then_expr;
         ExprPtr else_expr;
     };
+    struct ListLiteral {
+        std::vector<ExprPtr> elements;
+    };
+    struct TypeCast {
+        AstType target_type;
+        ExprPtr expr;
+    };
 
-    using Variant = std::variant<Literal, Variable, UnaryOp, BinaryOp, FunctionCall, Ternary>;
+    using Variant = std::variant<Literal, Variable, UnaryOp, BinaryOp, FunctionCall, Ternary, ListLiteral, TypeCast>;
 
     Span span;
     Variant value;
@@ -134,6 +141,12 @@ struct Statement {
     struct Assignment {
         std::string name;
         Expr expr;
+    };
+
+    struct VarDecl {
+        std::string name;
+        AstType type;
+        std::optional<Expr> initializer;
     };
 
     struct If {
@@ -162,7 +175,7 @@ struct Statement {
     struct Break {};
     struct Continue {};
 
-    using Variant = std::variant<Assignment, If, While, Return, FunctionDef, Break, Continue>;
+    using Variant = std::variant<Assignment, VarDecl, If, While, Return, FunctionDef, Break, Continue>;
 
     Variant value;
 };

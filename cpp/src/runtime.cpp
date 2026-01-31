@@ -19,7 +19,7 @@ void Environment::set(const std::string& name, const RuntimeValue& value) {
     variables[name] = value;
 }
 
-Result<RuntimeValue> Interpreter::run(std::vector<Statement>& stmts) {
+Result<RuntimeValue> Interpreter::run(const std::vector<Statement>& stmts) {
     auto r = this->eval_statements(stmts, *this->global_env);
     if (is_err(r)) return err<RuntimeValue>(r.error());
     ExecFlow exec = r.value();
@@ -36,17 +36,43 @@ Result<RuntimeValue> Interpreter::run(std::vector<Statement>& stmts) {
                                  [](ExecFlow::Continue) -> Result<RuntimeValue> {
                                      return err<RuntimeValue>(std::make_shared<Error>(
                                          "invalid 'continue' statement", ErrorKind::Syntax));
+                                 },
+                                 [](ExecFlow::Exit) -> Result<RuntimeValue> {
+                                     // Graceful exit - return null to signal program termination
+                                     return ok(RuntimeValue{RuntimeValue::Null{}});
                                  }},
                       exec.value);
 }
 
-Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Environment& env) {
-    for (auto& s : stmts) {
+Result<ExecFlow> Interpreter::eval_statements(const std::vector<Statement>& stmts,
+                                              Environment& env) {
+    for (const auto& s : stmts) {
         // Assignment
         if (auto a = std::get_if<Statement::Assignment>(&s.value)) {
             auto r = this->eval_expr(a->expr, env.shared_from_this());
             if (is_err(r)) return err<ExecFlow>(r.error());
             env.set(a->name, r.value());
+            continue;
+        }
+
+        // Variable Declaration
+        if (auto vd = std::get_if<Statement::VarDecl>(&s.value)) {
+            RuntimeValue value;
+            if (vd->initializer.has_value()) {
+                // Has initializer expression
+                auto r = this->eval_expr(vd->initializer.value(), env.shared_from_this());
+                if (is_err(r)) return err<ExecFlow>(r.error());
+                value = r.value();
+                // Type check
+                if (!matches_type(value, vd->type)) {
+                    return err<ExecFlow>(std::make_shared<Error>(
+                        "initializer type does not match declared type", ErrorKind::Type));
+                }
+            } else {
+                // Empty initializer - default to null
+                value.value = RuntimeValue::Null{};
+            }
+            env.set(vd->name, value);
             continue;
         }
 
@@ -56,9 +82,7 @@ Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Env
             if (is_err(cond_r)) return err<ExecFlow>(cond_r.error());
             if (is_truthy(cond_r.value())) {
                 auto child = std::make_shared<Environment>(env.shared_from_this());
-                std::vector<Statement> body_vals;
-                for (auto& sp : i->body) body_vals.push_back(*sp);
-                auto flow = this->eval_statements(body_vals, *child);
+                auto flow = this->eval_statements(i->body, *child);
                 if (is_err(flow)) return err<ExecFlow>(flow.error());
                 if (!std::holds_alternative<ExecFlow::None>(flow.value().value)) return flow;
             } else {
@@ -69,9 +93,7 @@ Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Env
                     if (is_truthy(er.value())) {
                         matched = true;
                         auto child = std::make_shared<Environment>(env.shared_from_this());
-                        std::vector<Statement> body_vals;
-                        for (auto& sp : el.second) body_vals.push_back(*sp);
-                        auto flow = this->eval_statements(body_vals, *child);
+                        auto flow = this->eval_statements(el.second, *child);
                         if (is_err(flow)) return err<ExecFlow>(flow.error());
                         if (!std::holds_alternative<ExecFlow::None>(flow.value().value))
                             return flow;
@@ -80,9 +102,7 @@ Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Env
                 }
                 if (!matched) {
                     auto child = std::make_shared<Environment>(env.shared_from_this());
-                    std::vector<Statement> body_vals;
-                    for (auto& sp : i->else_body) body_vals.push_back(*sp);
-                    auto flow = this->eval_statements(body_vals, *child);
+                    auto flow = this->eval_statements(i->else_body, *child);
                     if (is_err(flow)) return err<ExecFlow>(flow.error());
                     if (!std::holds_alternative<ExecFlow::None>(flow.value().value)) return flow;
                 }
@@ -97,62 +117,209 @@ Result<ExecFlow> Interpreter::eval_statements(std::vector<Statement>& stmts, Env
                 if (is_err(cr)) return err<ExecFlow>(cr.error());
                 if (!is_truthy(cr.value())) break;
                 auto child = std::make_shared<Environment>(env.shared_from_this());
-                std::vector<Statement> body_vals;
-                for (auto& sp : w->body) body_vals.push_back(*sp);
-                auto flow = this->eval_statements(body_vals, *child);
+                auto flow = this->eval_statements(w->body, *child);
                 if (is_err(flow)) return err<ExecFlow>(flow.error());
                 if (std::holds_alternative<ExecFlow::Return>(flow.value().value)) return flow;
                 if (std::holds_alternative<ExecFlow::Break>(flow.value().value)) break;
-                if (std::holds_alternative<ExecFlow::Continue>(flow.value().value)) continue;
             }
             continue;
         }
 
         // Return
         if (auto r = std::get_if<Statement::Return>(&s.value)) {
-            auto vr = this->eval_expr(r->value, env.shared_from_this());
-            if (is_err(vr)) return err<ExecFlow>(vr.error());
-            ExecFlow out;
-            out.value = ExecFlow::Return{vr.value()};
-            return ok(out);
-        }
-
-        // FunctionDef
-        if (auto f = std::get_if<Statement::FunctionDef>(&s.value)) {
-            MethodRepr m;
-            for (auto& p : f->params) m.args.emplace_back(p.first, p.second);
-            m.returnType = f->return_type.value_or(AstType());
-            for (auto& sp : f->body) m.body.push_back(*sp);
-            this->functions[f->name] = std::move(m);
-            continue;
+            ExecFlow f;
+            if (r->expr.has_value()) {
+                auto e = this->eval_expr(*r->expr, env.shared_from_this());
+                if (is_err(e)) return err<ExecFlow>(e.error());
+                f.value = ExecFlow::Return{e.value()};
+            } else {
+                RuntimeValue n;
+                n.value = RuntimeValue::Null{};
+                f.value = ExecFlow::Return{n};
+            }
+            return ok(f);
         }
 
         // Break
-        if (std::holds_alternative<Statement::Break>(s.value)) {
-            ExecFlow out;
-            out.value = ExecFlow::Break{};
-            return ok(out);
+        if (std::get_if<Statement::Break>(&s.value)) {
+            ExecFlow f;
+            f.value = ExecFlow::Break{};
+            return ok(f);
         }
 
         // Continue
-        if (std::holds_alternative<Statement::Continue>(s.value)) {
-            ExecFlow out;
-            out.value = ExecFlow::Continue{};
-            return ok(out);
+        if (std::get_if<Statement::Continue>(&s.value)) {
+            ExecFlow f;
+            f.value = ExecFlow::Continue{};
+            return ok(f);
+        }
+
+        // FunctionDef
+        if (auto fd = std::get_if<Statement::FunctionDef>(&s.value)) {
+            MethodRepr method;
+            method.name = fd->name;
+            method.params = fd->params;
+            method.body = fd->body;
+            method.return_type = fd->return_type;
+
+            RuntimeValue v;
+            v.value = RuntimeValue::Method{method};
+            env.set(fd->name, v);
+            continue;
+        }
+
+        // Expression statement
+        if (auto e = std::get_if<Statement::Expression>(&s.value)) {
+            auto r = this->eval_expr(e->expr, env.shared_from_this());
+            if (is_err(r)) return err<ExecFlow>(r.error());
+            continue;
         }
     }
-
-    ExecFlow none;
-    none.value = ExecFlow::None{};
-    return ok(none);
+    ExecFlow f;
+    f.value = ExecFlow::None{};
+    return ok(f);
 }
 
-Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
-    using E = Expr;
+// Overload to avoid copying Statement objects from unique_ptrs
+Result<ExecFlow> Interpreter::eval_statements(const std::vector<StmtPtr>& stmts, Environment& env) {
+    for (const auto& stmt_ptr : stmts) {
+        const Statement& s = *stmt_ptr;
 
-    auto make_err = [&](std::shared_ptr<Error> e) -> Result<RuntimeValue> {
-        return err<RuntimeValue>(e);
-    };
+        // Assignment
+        if (auto a = std::get_if<Statement::Assignment>(&s.value)) {
+            auto r = this->eval_expr(a->expr, env.shared_from_this());
+            if (is_err(r)) return err<ExecFlow>(r.error());
+            env.set(a->name, r.value());
+            continue;
+        }
+
+        // Variable Declaration
+        if (auto vd = std::get_if<Statement::VarDecl>(&s.value)) {
+            RuntimeValue value;
+            if (vd->initializer.has_value()) {
+                // Has initializer expression
+                auto r = this->eval_expr(vd->initializer.value(), env.shared_from_this());
+                if (is_err(r)) return err<ExecFlow>(r.error());
+                value = r.value();
+                // Type check
+                if (!matches_type(value, vd->type)) {
+                    return err<ExecFlow>(std::make_shared<Error>(
+                        "initializer type does not match declared type", ErrorKind::Type));
+                }
+            } else {
+                // Empty initializer - default to null
+                value.value = RuntimeValue::Null{};
+            }
+            env.set(vd->name, value);
+            continue;
+        }
+
+        // If
+        if (auto i = std::get_if<Statement::If>(&s.value)) {
+            auto cond_r = this->eval_expr(i->condition, env.shared_from_this());
+            if (is_err(cond_r)) return err<ExecFlow>(cond_r.error());
+            if (is_truthy(cond_r.value())) {
+                auto child = std::make_shared<Environment>(env.shared_from_this());
+                auto flow = this->eval_statements(i->body, *child);
+                if (is_err(flow)) return err<ExecFlow>(flow.error());
+                if (!std::holds_alternative<ExecFlow::None>(flow.value().value)) return flow;
+            } else {
+                bool matched = false;
+                for (auto& el : i->elif) {
+                    auto er = this->eval_expr(el.first, env.shared_from_this());
+                    if (is_err(er)) return err<ExecFlow>(er.error());
+                    if (is_truthy(er.value())) {
+                        matched = true;
+                        auto child = std::make_shared<Environment>(env.shared_from_this());
+                        auto flow = this->eval_statements(el.second, *child);
+                        if (is_err(flow)) return err<ExecFlow>(flow.error());
+                        if (!std::holds_alternative<ExecFlow::None>(flow.value().value))
+                            return flow;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    auto child = std::make_shared<Environment>(env.shared_from_this());
+                    auto flow = this->eval_statements(i->else_body, *child);
+                    if (is_err(flow)) return err<ExecFlow>(flow.error());
+                    if (!std::holds_alternative<ExecFlow::None>(flow.value().value)) return flow;
+                }
+            }
+            continue;
+        }
+
+        // While
+        if (auto w = std::get_if<Statement::While>(&s.value)) {
+            while (true) {
+                auto cr = this->eval_expr(w->condition, env.shared_from_this());
+                if (is_err(cr)) return err<ExecFlow>(cr.error());
+                if (!is_truthy(cr.value())) break;
+                auto child = std::make_shared<Environment>(env.shared_from_this());
+                auto flow = this->eval_statements(w->body, *child);
+                if (is_err(flow)) return err<ExecFlow>(flow.error());
+                if (std::holds_alternative<ExecFlow::Return>(flow.value().value)) return flow;
+                if (std::holds_alternative<ExecFlow::Break>(flow.value().value)) break;
+            }
+            \n continue;
+        }
+
+        // Return
+        if (auto r = std::get_if<Statement::Return>(&s.value)) {
+            ExecFlow f;
+            if (r->expr.has_value()) {
+                auto e = this->eval_expr(*r->expr, env.shared_from_this());
+                if (is_err(e)) return err<ExecFlow>(e.error());
+                f.value = ExecFlow::Return{e.value()};
+            } else {
+                RuntimeValue n;
+                n.value = RuntimeValue::Null{};
+                f.value = ExecFlow::Return{n};
+            }
+            return ok(f);
+        }
+
+        // Break
+        if (std::get_if<Statement::Break>(&s.value)) {
+            ExecFlow f;
+            f.value = ExecFlow::Break{};
+            return ok(f);
+        }
+
+        // Continue
+        if (std::get_if<Statement::Continue>(&s.value)) {
+            ExecFlow f;
+            f.value = ExecFlow::Continue{};
+            return ok(f);
+        }
+
+        // FunctionDef
+        if (auto fd = std::get_if<Statement::FunctionDef>(&s.value)) {
+            MethodRepr method;
+            method.name = fd->name;
+            method.params = fd->params;
+            method.body = fd->body;
+            method.return_type = fd->return_type;
+
+            RuntimeValue v;
+            v.value = RuntimeValue::Method{method};
+            env.set(fd->name, v);
+            continue;
+        }
+
+        // Expression statement
+        if (auto e = std::get_if<Statement::Expression>(&s.value)) {
+            auto r = this->eval_expr(e->expr, env.shared_from_this());
+            if (is_err(r)) return err<ExecFlow>(r.error());
+            continue;
+        }
+    }
+    ExecFlow f;
+    f.value = ExecFlow::None{};
+    return ok(f);
+}
+
+Result<RuntimeValue> Interpreter::eval_expr(const Expr& expr, env_ptr env) {
+    using E = Expr;
 
     if (std::holds_alternative<E::Literal>(expr.value)) {
         auto lit = std::get<E::Literal>(expr.value);
@@ -161,16 +328,20 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
 
     if (std::holds_alternative<E::Variable>(expr.value)) {
         auto v = std::get<E::Variable>(expr.value);
-        if (!env) return ok(RuntimeValue{RuntimeValue::Null{}});
+        if (!env) {
+            return err<RuntimeValue>(std::make_shared<Error>(
+                "Variable '" + v.name + "' is undefined (no environment)", ErrorKind::Runtime));
+        }
         auto ov = env->get(v.name);
         if (ov.has_value()) return ok(ov.value());
-        return ok(RuntimeValue{RuntimeValue::Null{}});
+        return err<RuntimeValue>(
+            std::make_shared<Error>("Variable '" + v.name + "' is undefined", ErrorKind::Runtime));
     }
 
     if (std::holds_alternative<E::UnaryOp>(expr.value)) {
         const auto& u = std::get<E::UnaryOp>(expr.value);
         auto r = this->eval_expr(*u.next, env);
-        if (is_err(r)) return make_err(r.error());
+        if (is_err(r)) return err<RuntimeValue>(r.error());
 
         if (u.op == Operator::Not) {
             bool val = is_truthy(r.value());
@@ -195,55 +366,39 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
             return err<RuntimeValue>(
                 std::make_shared<Error>("unsupported operand type for unary -", ErrorKind::Type));
         }
-        return ok(RuntimeValue{RuntimeValue::Null{}});
+        return err<RuntimeValue>(
+            std::make_shared<Error>("unsupported unary operator", ErrorKind::Runtime));
     }
 
     if (std::holds_alternative<E::BinaryOp>(expr.value)) {
         const auto& b = std::get<E::BinaryOp>(expr.value);
         auto lr = this->eval_expr(*b.left, env);
-        if (is_err(lr)) return make_err(lr.error());
+        if (is_err(lr)) return err<RuntimeValue>(lr.error());
         RuntimeValue l = lr.value();
 
-        // Short-circuiting logical operators implemented here so RHS isn't evaluated unnecessarily
-        switch (b.op) {
-            case Operator::And: {
-                if (!is_truthy(l)) {
-                    RuntimeValue out;
-                    out.value = RuntimeValue::Bool{false};
-                    return ok(out);
-                }
-                {
-                    auto rr = this->eval_expr(*b.right, env);
-                    if (is_err(rr)) return make_err(rr.error());
-                    RuntimeValue r = rr.value();
-                    RuntimeValue out;
-                    out.value = RuntimeValue::Bool{is_truthy(r)};
-                    return ok(out);
-                }
-            }
-            case Operator::Or: {
-                if (is_truthy(l)) {
-                    RuntimeValue out;
-                    out.value = RuntimeValue::Bool{true};
-                    return ok(out);
-                }
-                {
-                    auto rr = this->eval_expr(*b.right, env);
-                    if (is_err(rr)) return make_err(rr.error());
-                    RuntimeValue r = rr.value();
-                    RuntimeValue out;
-                    out.value = RuntimeValue::Bool{is_truthy(r)};
-                    return ok(out);
-                }
-            }
-            default:
-                break;
+        // Short-circuiting logical operators
+        if (b.op == Operator::And && !is_truthy(l)) {
+            RuntimeValue out;
+            out.value = RuntimeValue::Bool{false};
+            return ok(out);
+        }
+        if (b.op == Operator::Or && is_truthy(l)) {
+            RuntimeValue out;
+            out.value = RuntimeValue::Bool{true};
+            return ok(out);
         }
 
-        // Non-short-circuiting/other operators: evaluate RHS now
+        // Evaluate RHS (either for non-short-circuiting ops or when short-circuit didn't trigger)
         auto rr = this->eval_expr(*b.right, env);
-        if (is_err(rr)) return make_err(rr.error());
+        if (is_err(rr)) return err<RuntimeValue>(rr.error());
         RuntimeValue r = rr.value();
+
+        // Handle logical operators that need RHS evaluation
+        if (b.op == Operator::And || b.op == Operator::Or) {
+            RuntimeValue out;
+            out.value = RuntimeValue::Bool{is_truthy(r)};
+            return ok(out);
+        }
 
         switch (b.op) {
             case Operator::Add: {
@@ -319,7 +474,8 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
                     std::make_shared<Error>("unsupported operand types for ++", ErrorKind::Type));
             }
             default:
-                return ok(RuntimeValue{RuntimeValue::Null{}});
+                return err<RuntimeValue>(
+                    std::make_shared<Error>("unsupported binary operator", ErrorKind::Runtime));
         }
     }
 
@@ -328,11 +484,16 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
         std::vector<RuntimeValue> eval_args;
         for (auto& a : fc.args) {
             auto ar = this->eval_expr(*a, env);
-            if (is_err(ar)) return make_err(ar.error());
+            if (is_err(ar)) return err<RuntimeValue>(ar.error());
             eval_args.push_back(ar.value());
         }
 
-        if (fc.name == "exit") std::exit(0);
+        if (fc.name == "exit") {
+            ExecFlow flow;
+            flow.value = ExecFlow::Exit{};
+            return err<RuntimeValue>(
+                std::make_shared<Error>("Program exit requested", ErrorKind::Exit));
+        }
 
         if (fc.name == "fstring") {
             if (eval_args.empty() ||
@@ -354,8 +515,15 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
                         ++j;
                     }
                     // placeholder indices are 1-based and refer to following args
+                    // %1 refers to eval_args[1] (first arg after template)
                     if (num >= 1 && static_cast<size_t>(num) < eval_args.size()) {
                         out += to_string(eval_args[static_cast<size_t>(num)]);
+                    } else {
+                        // Out of bounds - could error or ignore
+                        return err<RuntimeValue>(std::make_shared<Error>(
+                            "fstring placeholder %" + std::to_string(num) + " out of range (only " +
+                                std::to_string(eval_args.size() - 1) + " arguments provided)",
+                            ErrorKind::Runtime));
                     }
                     // advance i to end of number
                     i = j - 1;
@@ -375,7 +543,7 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
                 return err<RuntimeValue>(
                     std::make_shared<Error>("argument count mismatch", ErrorKind::Arity));
             auto child = std::make_shared<Environment>(env);
-            // bind arguments by iterating map order
+            // Bind arguments by position - vector preserves parameter order
             std::size_t idx = 0;
             for (auto& kv : m.args) {
                 const std::string& pname = kv.first;
@@ -387,7 +555,7 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
                 ++idx;
             }
             auto flow = this->eval_statements(m.body, *child);
-            if (is_err(flow)) return make_err(flow.error());
+            if (is_err(flow)) return err<RuntimeValue>(flow.error());
             if (std::holds_alternative<ExecFlow::Return>(flow.value().value)) {
                 auto ret = std::get<ExecFlow::Return>(flow.value().value).value;
                 if (!std::holds_alternative<AstType::Null>(m.returnType.value)) {
@@ -414,18 +582,103 @@ Result<RuntimeValue> Interpreter::eval_expr(Expr& expr, envPtr env) {
             }
         }
 
-        return ok(RuntimeValue{RuntimeValue::Null{}});
+        return err<RuntimeValue>(
+            std::make_shared<Error>("attempted to call a non-callable value", ErrorKind::Type));
     }
 
     if (std::holds_alternative<E::Ternary>(expr.value)) {
         auto& t = std::get<E::Ternary>(expr.value);
         auto cr = this->eval_expr(*t.condition, env);
-        if (is_err(cr)) return make_err(cr.error());
+        if (is_err(cr)) return err<RuntimeValue>(cr.error());
         if (is_truthy(cr.value()))
             return this->eval_expr(*t.then_expr, env);
         else
             return this->eval_expr(*t.else_expr, env);
     }
 
-    return ok(RuntimeValue{RuntimeValue::Null{}});
+    if (std::holds_alternative<E::ListLiteral>(expr.value)) {
+        auto& ll = std::get<E::ListLiteral>(expr.value);
+        std::vector<RuntimeValue> values;
+        values.reserve(ll.elements.size());
+        for (const auto& elem_ptr : ll.elements) {
+            auto r = this->eval_expr(*elem_ptr, env);
+            if (is_err(r)) return err<RuntimeValue>(r.error());
+            values.push_back(r.value());
+        }
+        RuntimeValue result;
+        result.value = RuntimeValue::List{std::move(values)};
+        return ok(result);
+    }
+
+    if (std::holds_alternative<E::TypeCast>(expr.value)) {
+        auto& tc = std::get<E::TypeCast>(expr.value);
+        auto val_result = this->eval_expr(*tc.expr, env);
+        if (is_err(val_result)) return err<RuntimeValue>(val_result.error());
+        RuntimeValue val = val_result.value();
+
+        return std::visit(
+            [&](const auto& target) -> Result<RuntimeValue> {
+                using T = std::decay_t<decltype(target)>;
+
+                // Cast to int
+                if constexpr (std::is_same_v<T, AstType::Int>) {
+                    if (std::holds_alternative<RuntimeValue::Int>(val.value)) {
+                        return ok(val);  // already int
+                    }
+                    if (std::holds_alternative<RuntimeValue::Float>(val.value)) {
+                        auto f = std::get<RuntimeValue::Float>(val.value).value;
+                        RuntimeValue result;
+                        result.value = RuntimeValue::Int{static_cast<int64_t>(f)};  // truncate
+                        return ok(result);
+                    }
+                    if (std::holds_alternative<RuntimeValue::Bool>(val.value)) {
+                        auto b = std::get<RuntimeValue::Bool>(val.value).value;
+                        RuntimeValue result;
+                        result.value = RuntimeValue::Int{b ? 1 : 0};
+                        return ok(result);
+                    }
+                    return err<RuntimeValue>(std::make_shared<Error>(
+                        "cannot cast to int from this type", ErrorKind::Type));
+                }
+
+                // Cast to float
+                else if constexpr (std::is_same_v<T, AstType::Float>) {
+                    if (std::holds_alternative<RuntimeValue::Float>(val.value)) {
+                        return ok(val);  // already float
+                    }
+                    if (std::holds_alternative<RuntimeValue::Int>(val.value)) {
+                        auto i = std::get<RuntimeValue::Int>(val.value).value;
+                        RuntimeValue result;
+                        result.value = RuntimeValue::Float{static_cast<double>(i)};
+                        return ok(result);
+                    }
+                    return err<RuntimeValue>(std::make_shared<Error>(
+                        "cannot cast to float from this type", ErrorKind::Type));
+                }
+
+                // Cast to string
+                else if constexpr (std::is_same_v<T, AstType::String>) {
+                    RuntimeValue result;
+                    result.value = RuntimeValue::String{to_string(val)};
+                    return ok(result);
+                }
+
+                // Cast to boolean
+                else if constexpr (std::is_same_v<T, AstType::Bool>) {
+                    RuntimeValue result;
+                    result.value = RuntimeValue::Bool{is_truthy(val)};
+                    return ok(result);
+                }
+
+                // Other types cannot be cast
+                else {
+                    return err<RuntimeValue>(std::make_shared<Error>(
+                        "type casting not supported for this target type", ErrorKind::Type));
+                }
+            },
+            tc.target_type.value);
+    }
+
+    return err<RuntimeValue>(
+        std::make_shared<Error>("unsupported expression type", ErrorKind::Runtime));
 }

@@ -41,6 +41,10 @@ Expr::Expr(const Expr& other) {
             } else if constexpr (std::is_same_v<T, Ternary>) {
                 return Ternary{utils::clone(v.condition), utils::clone(v.then_expr),
                                utils::clone(v.else_expr)};
+            } else if constexpr (std::is_same_v<T, ListLiteral>) {
+                return ListLiteral{utils::clone(v.elements)};
+            } else if constexpr (std::is_same_v<T, TypeCast>) {
+                return TypeCast{v.target_type, utils::clone(v.expr)};
             } else {
                 return v;
             }
@@ -61,14 +65,16 @@ Statement::Statement(const Statement& other) {
         [](const auto& v) -> Variant {
             using T = std::decay_t<decltype(v)>;
 
-            if constexpr (std::is_same_v<T, If>) {
-                return If{v.condition, utils::clone(v.body),
-                          [&] {
-                              std::vector<std::pair<Expr, std::vector<StmtPtr>>> r;
-                              for (const auto& [cond, body] : v.elif)
-                                  r.emplace_back(cond, utils::clone(body));
-                              return r;
-                          }(),
+            if constexpr (std::is_same_v<T, VarDecl>) {
+                return VarDecl{v.name, v.type, v.initializer};
+            } else if constexpr (std::is_same_v<T, If>) {
+                // Clone elif branches
+                std::vector<std::pair<Expr, std::vector<StmtPtr>>> cloned_elif;
+                cloned_elif.reserve(v.elif.size());
+                for (const auto& [cond, body] : v.elif) {
+                    cloned_elif.emplace_back(cond, utils::clone(body));
+                }
+                return If{v.condition, utils::clone(v.body), std::move(cloned_elif),
                           utils::clone(v.else_body)};
             } else if constexpr (std::is_same_v<T, While>) {
                 return While{v.condition, utils::clone(v.body)};

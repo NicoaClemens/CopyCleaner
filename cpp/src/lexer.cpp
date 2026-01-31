@@ -107,6 +107,56 @@ Token Lexer::read_identifier_or_keyword(Pos start) {
     return Token{kind, std::string(lex), Span{start, end}};
 }
 
+bool Lexer::handle_escape_sequence(std::string& lex) {
+    if (peek(0) != '\\') return false;
+    // consume backslash
+    next_char();
+    char n = peek(0);
+    if (n == '\0') return true;  // end of input after backslash
+
+    // Line continuation: backslash + newline -> remove both (multi-line strings)
+    if (n == '\n') {
+        next_char();  // consume newline
+        return true;
+    }
+    if (n == '\r') {
+        next_char();                       // consume CR
+        if (peek(0) == '\n') next_char();  // consume LF if present
+        return true;
+    }
+
+    // Common escape sequences - expand to actual characters
+    next_char();  // consume the escaped char
+    switch (n) {
+        case 'n':
+            lex.push_back('\n');
+            return true;
+        case 't':
+            lex.push_back('\t');
+            return true;
+        case 'r':
+            lex.push_back('\r');
+            return true;
+        case '\\':
+            lex.push_back('\\');
+            return true;
+        case '"':
+            lex.push_back('"');
+            return true;
+        case '\'':
+            lex.push_back('\'');
+            return true;
+        case '0':
+            lex.push_back('\0');
+            return true;
+        default:
+            // Unknown escape - preserve both backslash and character
+            lex.push_back('\\');
+            lex.push_back(n);
+            return true;
+    }
+}
+
 Token Lexer::read_string(Pos start) {
     char quote = peek(0);
     // consume opening quote
@@ -114,35 +164,19 @@ Token Lexer::read_string(Pos start) {
     std::string lex;
     lex.push_back(quote);
 
+    bool terminated = false;
     while (true) {
         char c = peek(0);
-        if (c == '\0') break;  // unterminated handled by caller via Result
+        if (c == '\0') break;  // unterminated
 
-        if (c == '\\') {
-            // consume backslash
-            next_char();
-            char n = peek(0);
-            if (n == '\0') break;
-            // collapse backslash + newline (including CRLF) -> remove both
-            if (n == '\n') {
-                next_char();  // consume newline
-                continue;
-            }
-            if (n == '\r') {
-                next_char();                       // consume CR
-                if (peek(0) == '\n') next_char();  // consume LF if present
-                continue;
-            }
-            // preserve other escapes (keep backslash and escaped char)
-            lex.push_back('\\');
-            lex.push_back(n);
-            next_char();  // consume the escaped char
+        if (handle_escape_sequence(lex)) {
             continue;
         }
 
         if (c == quote) {
             next_char();
             lex.push_back(quote);
+            terminated = true;
             break;
         }
         // normal char
@@ -151,13 +185,15 @@ Token Lexer::read_string(Pos start) {
     }
 
     Pos end{line_, column_};
-    return Token{TokenKind::String, std::move(lex), Span{start, end}};
+    auto kind = terminated ? TokenKind::String : TokenKind::Unknown;
+    return Token{kind, std::move(lex), Span{start, end}};
 }
 
 Token Lexer::read_regex(Pos start) {
     // assume leading '/'
     size_t start_idx = pos_;
     next_char();  // consume '/'
+    bool terminated = false;
     while (true) {
         char c = peek(0);
         if (c == '\0') break;
@@ -168,6 +204,7 @@ Token Lexer::read_regex(Pos start) {
         }
         if (c == '/') {
             next_char();
+            terminated = true;
             break;
         }
         next_char();
@@ -178,7 +215,54 @@ Token Lexer::read_regex(Pos start) {
     size_t len = pos_ - start_idx;
     auto lex = src_.substr(start_idx, len);
     Pos end{line_, column_};
-    return Token{TokenKind::Regex, std::string(lex), Span{start, end}};
+    auto kind = terminated ? TokenKind::Regex : TokenKind::Unknown;
+    return Token{kind, std::string(lex), Span{start, end}};
+}
+
+Token Lexer::read_backslash_regex(Pos start) {
+    // assume leading '\'
+    size_t start_idx = pos_;
+    next_char();  // consume opening '\'
+    bool terminated = false;
+    bool in_escape = false;
+    while (true) {
+        char c = peek(0);
+        if (c == '\0') break;
+
+        if (in_escape) {
+            // After seeing a backslash inside the pattern, consume next char
+            if (c != '\0') next_char();
+            in_escape = false;
+            continue;
+        }
+
+        if (c == '\\') {
+            // Could be escape or closing delimiter
+            // Peek ahead to distinguish
+            char next = peek(1);
+            if (next == '\0' || next == 'i' || next == 'g' || next == 'm' || next == 's' ||
+                std::isspace(static_cast<unsigned char>(next))) {
+                // Likely the closing backslash (followed by flags, space, or end)
+                next_char();
+                terminated = true;
+                break;
+            } else {
+                // Escape sequence inside pattern
+                next_char();
+                in_escape = true;
+                continue;
+            }
+        }
+        next_char();
+    }
+    // flags (optional after closing backslash)
+    while (std::isalpha(static_cast<unsigned char>(peek(0)))) next_char();
+
+    size_t len = pos_ - start_idx;
+    auto lex = src_.substr(start_idx, len);
+    Pos end{line_, column_};
+    auto kind = terminated ? TokenKind::Regex : TokenKind::Unknown;
+    return Token{kind, std::string(lex), Span{start, end}};
 }
 
 Token Lexer::read_operator_or_punct(Pos start) {
@@ -306,8 +390,8 @@ Result<Token> Lexer::next_token() {
         // consume the 'f' prefix so read_string consumes the quote
         next_char();
         Token t = read_string(start);
-        // prepend 'f' to lexeme so parser/runtime can detect it if needed
-        t.lexeme.insert(t.lexeme.begin(), 'f');
+        // Mark as FString token kind instead of prepending 'f'
+        t.kind = TokenKind::FString;
         return emit(std::move(t));
     }
 
@@ -323,13 +407,67 @@ Result<Token> Lexer::next_token() {
 
     if (c == '"' || c == '\'') {
         Token t = read_string(start);
-        // detect unterminated crude check: must end with same quote
-        if (t.lexeme.size() < 2 || (t.lexeme.front() != '"' && t.lexeme.front() != '\'')) {
-            Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_, column_}}};
+        if (t.kind == TokenKind::Unknown) {
             return err<Token>(
                 std::make_shared<Error>("Unterminated string literal", ErrorKind::Syntax));
         }
         return emit(std::move(t));
+    }
+
+    // Backslash regex literal: \pattern\ (alternative regex syntax)
+    if (c == '\\') {
+        // Check if this could be a regex literal (not after an expression)
+        auto ends_expr = [](TokenKind k) -> bool {
+            switch (k) {
+                case TokenKind::Identifier:
+                case TokenKind::Int:
+                case TokenKind::Float:
+                case TokenKind::String:
+                case TokenKind::Bool:
+                case TokenKind::Regex:
+                case TokenKind::RParen:
+                case TokenKind::RBracket:
+                case TokenKind::RBrace:
+                case TokenKind::EndOfFile:
+                    return true;
+                default:
+                    return false;
+            }
+        };
+
+        // Only try backslash regex if we're not after an expression-ending token
+        if (!ends_expr(this->last_token_kind_)) {
+            // Try a quick forward scan for an unescaped closing '\'
+            size_t scan_i = pos_ + 1;
+            bool found = false;
+            const size_t src_sz = src_.size();
+            while (scan_i < src_sz) {
+                char cc = src_[scan_i];
+                if (cc == '\\') {
+                    // Check if it's escaped (preceded by backslash)
+                    if (scan_i > pos_ + 1 && src_[scan_i - 1] == '\\') {
+                        scan_i++;
+                        continue;
+                    }
+                    found = true;
+                    ++scan_i;  // consume flags
+                    while (scan_i < src_sz &&
+                           std::isalpha(static_cast<unsigned char>(src_[scan_i])))
+                        ++scan_i;
+                    break;
+                }
+                ++scan_i;
+            }
+
+            if (found) {
+                Token t = read_backslash_regex(start);
+                if (t.kind == TokenKind::Unknown) {
+                    return err<Token>(
+                        std::make_shared<Error>("Unterminated regex literal", ErrorKind::Syntax));
+                }
+                return emit(std::move(t));
+            }
+        }
     }
 
     // Regex or slash/operator: use context heuristic
@@ -379,8 +517,7 @@ Result<Token> Lexer::next_token() {
 
         if (found) {
             Token t = read_regex(start);
-            if (t.lexeme.size() < 2 || t.lexeme.front() != '/') {
-                Token dummy{TokenKind::Unknown, t.lexeme, Span{start, Pos{line_, column_}}};
+            if (t.kind == TokenKind::Unknown) {
                 return err<Token>(
                     std::make_shared<Error>("Unterminated regex literal", ErrorKind::Syntax));
             }

@@ -19,10 +19,20 @@ namespace parser {
 
 Parser::Parser(Lexer& lexer) : lexer_(lexer) {
     auto token_result = lexer_.next_token();
-    current_ = token_result.value();
+    if (token_result.is_err()) {
+        had_error_ = true;
+        // Use a dummy token as placeholder; error will be reported in parse()
+        current_ = Token{TokenKind::Unknown, "", Span{}};
+    } else {
+        current_ = token_result.value();
+    }
 }
 
 Result<std::vector<Statement>> Parser::parse() {
+    if (had_error_) {
+        return err<std::vector<Statement>>(
+            std::make_shared<Error>("Failed to initialize parser: lexer error", ErrorKind::Parse));
+    }
     std::vector<Statement> statements;
 
     while (!check(TokenKind::EndOfFile)) {
@@ -30,7 +40,7 @@ Result<std::vector<Statement>> Parser::parse() {
         if (is_err(stmt)) {
             return err<std::vector<Statement>>(stmt.error());
         }
-        statements.push_back(stmt.value());
+        statements.push_back(std::move(stmt).value());
     }
 
     return ok(std::move(statements));
@@ -103,6 +113,13 @@ Result<Statement> Parser::parse_statement() {
 
     // Variable declaration or assignment
     if (check(TokenKind::Identifier)) {
+        // Check if this is a type keyword (potential variable declaration)
+        std::string ident = peek().lexeme;
+        if (ident == "int" || ident == "float" || ident == "boolean" || 
+            ident == "string" || ident == "regex" || ident == "match" || ident == "list") {
+            return parse_var_declaration();
+        }
+        // Otherwise it's an assignment
         return parse_assignment();
     }
 
@@ -128,6 +145,49 @@ Result<Statement> Parser::parse_assignment() {
     return ok(stmt);
 }
 
+Result<Statement> Parser::parse_var_declaration() {
+    // Parse type
+    auto type_result = parse_type();
+    if (is_err(type_result)) return err<Statement>(type_result.error());
+    AstType type = std::move(type_result).value();
+
+    // Parse variable name
+    auto name_tok = expect(TokenKind::Identifier, "expected variable name after type");
+    if (is_err(name_tok)) return err<Statement>(name_tok.error());
+    std::string name = name_tok.value().lexeme;
+
+    // Parse initializer: (expr) or () or () = expr
+    auto lparen = expect(TokenKind::LParen, "expected '(' after variable name");
+    if (is_err(lparen)) return err<Statement>(lparen.error());
+
+    std::optional<Expr> initializer;
+    
+    // Check for empty initializer: int n()
+    if (!check(TokenKind::RParen)) {
+        // Has expression inside parens: int n(4)
+        auto expr = parse_expression();
+        if (is_err(expr)) return err<Statement>(expr.error());
+        initializer = std::move(expr).value();
+    }
+
+    auto rparen = expect(TokenKind::RParen, "expected ')' after initializer");
+    if (is_err(rparen)) return err<Statement>(rparen.error());
+
+    // Check for assignment syntax: int n() = expr
+    if (match(TokenKind::Assign)) {
+        auto expr = parse_expression();
+        if (is_err(expr)) return err<Statement>(expr.error());
+        initializer = std::move(expr).value();
+    }
+
+    auto semi = expect(TokenKind::Semicolon, "expected ';' after variable declaration");
+    if (is_err(semi)) return err<Statement>(semi.error());
+
+    Statement stmt;
+    stmt.value = Statement::VarDecl{name, type, initializer};
+    return ok(stmt);
+}
+
 Result<Statement> Parser::parse_if_statement() {
     auto lparen = expect(TokenKind::LParen, "expected '(' after 'if'");
     if (is_err(lparen)) return err<Statement>(lparen.error());
@@ -145,7 +205,7 @@ Result<Statement> Parser::parse_if_statement() {
     while (!check(TokenKind::RBrace) && !check(TokenKind::EndOfFile)) {
         auto stmt = parse_statement();
         if (is_err(stmt)) return err<Statement>(stmt.error());
-        body.push_back(std::make_unique<Statement>(stmt.value()));
+        body.push_back(std::make_unique<Statement>(std::move(stmt).value()));
     }
 
     auto rbrace = expect(TokenKind::RBrace, "expected '}' after if body");
@@ -170,7 +230,7 @@ Result<Statement> Parser::parse_if_statement() {
         while (!check(TokenKind::RBrace) && !check(TokenKind::EndOfFile)) {
             auto stmt = parse_statement();
             if (is_err(stmt)) return err<Statement>(stmt.error());
-            elif_body.push_back(std::make_unique<Statement>(stmt.value()));
+            elif_body.push_back(std::make_unique<Statement>(std::move(stmt).value()));
         }
 
         auto elif_rbrace = expect(TokenKind::RBrace, "expected '}' after elif body");
@@ -188,7 +248,7 @@ Result<Statement> Parser::parse_if_statement() {
         while (!check(TokenKind::RBrace) && !check(TokenKind::EndOfFile)) {
             auto stmt = parse_statement();
             if (is_err(stmt)) return err<Statement>(stmt.error());
-            else_body.push_back(std::make_unique<Statement>(stmt.value()));
+            else_body.push_back(std::make_unique<Statement>(std::move(stmt).value()));
         }
 
         auto else_rbrace = expect(TokenKind::RBrace, "expected '}' after else body");
@@ -221,7 +281,7 @@ Result<Statement> Parser::parse_while_statement() {
     while (!check(TokenKind::RBrace) && !check(TokenKind::EndOfFile)) {
         auto stmt = parse_statement();
         if (is_err(stmt)) return err<Statement>(stmt.error());
-        body.push_back(std::make_unique<Statement>(stmt.value()));
+        body.push_back(std::make_unique<Statement>(std::move(stmt).value()));
     }
 
     auto rbrace = expect(TokenKind::RBrace, "expected '}' after while body");
@@ -240,7 +300,7 @@ Result<Statement> Parser::parse_function_def() {
     if (is_err(name_tok)) return err<Statement>(name_tok.error());
     std::string func_name = name_tok.value().lexeme;
 
-    // Parse return type if present (before parameters)
+    // Parse return type if present (BEFORE parameters as per docs: "function name returns type(params)")
     std::optional<AstType> return_type;
     if (match(TokenKind::KwReturns)) {
         auto ret_type = parse_type();
@@ -261,7 +321,7 @@ Result<Statement> Parser::parse_function_def() {
             auto param_name = expect(TokenKind::Identifier, "expected parameter name");
             if (is_err(param_name)) return err<Statement>(param_name.error());
 
-            params.emplace_back(param_name.value().lexeme, param_type.value());
+            params.emplace_back(param_name.value().lexeme, std::move(param_type).value());
         } while (match(TokenKind::Comma));
     }
 
@@ -275,7 +335,7 @@ Result<Statement> Parser::parse_function_def() {
     while (!check(TokenKind::RBrace) && !check(TokenKind::EndOfFile)) {
         auto stmt = parse_statement();
         if (is_err(stmt)) return err<Statement>(stmt.error());
-        body.push_back(std::make_unique<Statement>(stmt.value()));
+        body.push_back(std::make_unique<Statement>(std::move(stmt).value()));
     }
 
     auto rbrace = expect(TokenKind::RBrace, "expected '}' after function body");
@@ -360,9 +420,10 @@ Result<Expr> Parser::parse_ternary() {
         if (is_err(else_expr)) return else_expr;
 
         Expr result;
-        result.value = Expr::Ternary{std::make_unique<Expr>(expr.value()),
-                                     std::make_unique<Expr>(then_expr.value()),
-                                     std::make_unique<Expr>(else_expr.value())};
+        result.span = Span{expr.value().span.start, else_expr.value().span.end};
+        result.value = Expr::Ternary{std::make_unique<Expr>(std::move(expr).value()),
+                                     std::make_unique<Expr>(std::move(then_expr).value()),
+                                     std::make_unique<Expr>(std::move(else_expr).value())};
         return ok(result);
     }
 
@@ -377,9 +438,12 @@ Result<Expr> Parser::parse_logical_or() {
         auto right = parse_logical_and();
         if (is_err(right)) return right;
 
+        Span left_span = left.value().span;
+        Span right_span = right.value().span;
         Expr result;
-        result.value = Expr::BinaryOp{std::make_unique<Expr>(left.value()), Operator::Or,
-                                      std::make_unique<Expr>(right.value())};
+        result.span = Span{left_span.start, right_span.end};
+        result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), Operator::Or,
+                                      std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
     }
 
@@ -394,9 +458,12 @@ Result<Expr> Parser::parse_logical_and() {
         auto right = parse_comparison();
         if (is_err(right)) return right;
 
+        Span left_span = left.value().span;
+        Span right_span = right.value().span;
         Expr result;
-        result.value = Expr::BinaryOp{std::make_unique<Expr>(left.value()), Operator::And,
-                                      std::make_unique<Expr>(right.value())};
+        result.span = Span{left_span.start, right_span.end};
+        result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), Operator::And,
+                                      std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
     }
 
@@ -428,9 +495,12 @@ Result<Expr> Parser::parse_comparison() {
         auto right = parse_addition();
         if (is_err(right)) return right;
 
+        Span left_span = left.value().span;
+        Span right_span = right.value().span;
         Expr result;
-        result.value = Expr::BinaryOp{std::make_unique<Expr>(left.value()), op,
-                                      std::make_unique<Expr>(right.value())};
+        result.span = Span{left_span.start, right_span.end};
+        result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), op,
+                                      std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
     }
 
@@ -456,9 +526,12 @@ Result<Expr> Parser::parse_addition() {
         auto right = parse_multiplication();
         if (is_err(right)) return right;
 
+        Span left_span = left.value().span;
+        Span right_span = right.value().span;
         Expr result;
-        result.value = Expr::BinaryOp{std::make_unique<Expr>(left.value()), op,
-                                      std::make_unique<Expr>(right.value())};
+        result.span = Span{left_span.start, right_span.end};
+        result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), op,
+                                      std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
     }
 
@@ -482,9 +555,12 @@ Result<Expr> Parser::parse_multiplication() {
         auto right = parse_exponentiation();
         if (is_err(right)) return right;
 
+        Span left_span = left.value().span;
+        Span right_span = right.value().span;
         Expr result;
-        result.value = Expr::BinaryOp{std::make_unique<Expr>(left.value()), op,
-                                      std::make_unique<Expr>(right.value())};
+        result.span = Span{left_span.start, right_span.end};
+        result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), op,
+                                      std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
     }
 
@@ -499,9 +575,12 @@ Result<Expr> Parser::parse_exponentiation() {
         auto right = parse_exponentiation();  // Right-associative
         if (is_err(right)) return right;
 
+        Span left_span = left.value().span;
+        Span right_span = right.value().span;
         Expr result;
-        result.value = Expr::BinaryOp{std::make_unique<Expr>(left.value()), Operator::Pow,
-                                      std::make_unique<Expr>(right.value())};
+        result.span = Span{left_span.start, right_span.end};
+        result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), Operator::Pow,
+                                      std::make_unique<Expr>(std::move(right).value())};
         return ok(result);
     }
 
@@ -509,21 +588,27 @@ Result<Expr> Parser::parse_exponentiation() {
 }
 
 Result<Expr> Parser::parse_unary() {
-    if (match(TokenKind::Not)) {
+    if (check(TokenKind::Not)) {
+        Pos start = current_.span.start;
+        advance();
         auto expr = parse_unary();
         if (is_err(expr)) return expr;
 
         Expr result;
-        result.value = Expr::UnaryOp{Operator::Not, std::make_unique<Expr>(expr.value())};
+        result.span = Span{start, expr.value().span.end};
+        result.value = Expr::UnaryOp{Operator::Not, std::make_unique<Expr>(std::move(expr).value())};
         return ok(result);
     }
 
-    if (match(TokenKind::Minus)) {
+    if (check(TokenKind::Minus)) {
+        Pos start = current_.span.start;
+        advance();
         auto expr = parse_unary();
         if (is_err(expr)) return expr;
 
         Expr result;
-        result.value = Expr::UnaryOp{Operator::Neg, std::make_unique<Expr>(expr.value())};
+        result.span = Span{start, expr.value().span.end};
+        result.value = Expr::UnaryOp{Operator::Neg, std::make_unique<Expr>(std::move(expr).value())};
         return ok(result);
     }
 
@@ -577,6 +662,21 @@ Result<Expr> Parser::parse_primary() {
         return ok(expr);
     }
 
+    if (check(TokenKind::FString)) {
+        Token tok = advance();
+        // Remove surrounding quotes from f-string
+        std::string str_val = tok.lexeme;
+        if (str_val.size() >= 2 && (str_val.front() == '"' || str_val.front() == '\'')) {
+            str_val = str_val.substr(1, str_val.size() - 2);
+        }
+        RuntimeValue val;
+        val.value = RuntimeValue::String{str_val};
+        Expr expr;
+        expr.value = Expr::Literal{val};
+        expr.span = tok.span;
+        return ok(expr);
+    }
+
     if (check(TokenKind::Regex)) {
         Token tok = advance();
         // Parse regex: /pattern/flags
@@ -593,15 +693,67 @@ Result<Expr> Parser::parse_primary() {
         return ok(expr);
     }
 
-    // Identifier or function call
+    // Identifier or function call or type cast
     if (check(TokenKind::Identifier)) {
         Token tok = advance();
         std::string name = tok.lexeme;
 
-        // Check for function call
+        // Check for type cast or function call
         if (check(TokenKind::LParen)) {
+            Pos start = tok.span.start;
             advance();  // consume '('
 
+            // Check if this is a type cast (type name followed by single expression)
+            bool is_type = (name == "int" || name == "float" || name == "boolean" || 
+                           name == "string" || name == "regex" || name == "match" || name == "list");
+            
+            if (is_type) {
+                // Try to parse as type cast: type(expr)
+                // For list types, we need to handle list<T>(expr)
+                AstType cast_type;
+                if (name == "int") {
+                    cast_type.value = AstType::Int{};
+                } else if (name == "float") {
+                    cast_type.value = AstType::Float{};
+                } else if (name == "boolean") {
+                    cast_type.value = AstType::Bool{};
+                } else if (name == "string") {
+                    cast_type.value = AstType::String{};
+                } else if (name == "regex") {
+                    cast_type.value = AstType::Regex{};
+                } else if (name == "match") {
+                    cast_type.value = AstType::Match{};
+                } else if (name == "list") {
+                    // list<T>(expr) - need to parse the type parameter
+                    auto lt = expect(TokenKind::Lt, "expected '<' after 'list' in type cast");
+                    if (is_err(lt)) return err<Expr>(lt.error());
+                    
+                    auto elem_type = parse_type();
+                    if (is_err(elem_type)) return err<Expr>(elem_type.error());
+                    
+                    auto gt = expect(TokenKind::Gt, "expected '>' after list element type");
+                    if (is_err(gt)) return err<Expr>(gt.error());
+                    
+                    cast_type.value = AstType::List{std::make_unique<AstType>(std::move(elem_type).value())};
+                    
+                    auto lparen2 = expect(TokenKind::LParen, "expected '(' after list type");
+                    if (is_err(lparen2)) return err<Expr>(lparen2.error());
+                }
+
+                // Parse the expression to cast
+                auto cast_expr = parse_expression();
+                if (is_err(cast_expr)) return err<Expr>(cast_expr.error());
+
+                auto rparen = expect(TokenKind::RParen, "expected ')' after type cast expression");
+                if (is_err(rparen)) return err<Expr>(rparen.error());
+
+                Expr expr;
+                expr.span = Span{start, rparen.value().span.end};
+                expr.value = Expr::TypeCast{cast_type, std::make_unique<Expr>(std::move(cast_expr).value())};
+                return ok(expr);
+            }
+
+            // Regular function call
             std::vector<ExprPtr> args;
             if (!check(TokenKind::RParen)) {
                 do {
@@ -615,8 +767,8 @@ Result<Expr> Parser::parse_primary() {
             if (is_err(rparen)) return err<Expr>(rparen.error());
 
             Expr expr;
+            expr.span = Span{tok.span.start, rparen.value().span.end};
             expr.value = Expr::FunctionCall{name, std::move(args)};
-            expr.span = tok.span;
             return ok(expr);
         }
 
@@ -636,6 +788,29 @@ Result<Expr> Parser::parse_primary() {
         if (is_err(rparen)) return err<Expr>(rparen.error());
 
         return expr;
+    }
+
+    // List literal: {expr, expr, ...}
+    if (check(TokenKind::LBrace)) {
+        Pos start = current_.span.start;
+        advance();  // consume '{'
+
+        std::vector<ExprPtr> elements;
+        if (!check(TokenKind::RBrace)) {
+            do {
+                auto elem = parse_expression();
+                if (is_err(elem)) return elem;
+                elements.push_back(std::make_unique<Expr>(std::move(elem).value()));
+            } while (match(TokenKind::Comma));
+        }
+
+        auto rbrace = expect(TokenKind::RBrace, "expected '}' after list elements");
+        if (is_err(rbrace)) return err<Expr>(rbrace.error());
+
+        Expr expr;
+        expr.span = Span{start, rbrace.value().span.end};
+        expr.value = Expr::ListLiteral{std::move(elements)};
+        return ok(expr);
     }
 
     return err<Expr>(std::make_shared<Error>("unexpected token in expression", current_.span,

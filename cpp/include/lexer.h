@@ -17,6 +17,7 @@ enum class TokenKind {
     Int,
     Float,
     String,
+    FString,
     Bool,
     Regex,
     KwFunction,
@@ -62,10 +63,6 @@ struct Token {
     TokenKind kind;
     std::string lexeme;
     Span span;
-
-    std::string copy_lexeme() const {
-        return lexeme;
-    }
 };
 
 class Lexer {
@@ -84,6 +81,8 @@ class Lexer {
     Token read_identifier_or_keyword(Pos start);
     Token read_string(Pos start);
     Token read_regex(Pos start);
+    Token read_backslash_regex(Pos start);
+    bool handle_escape_sequence(std::string& lex);
 
     std::string_view src_;
     size_t pos_ = 0;

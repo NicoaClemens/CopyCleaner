@@ -14,13 +14,14 @@
 /**
  * @brief Categories of errors that can occur during parsing or execution
  */
-enum class ErrorKind { Runtime, Syntax, Type, Arity, DivideByZero };
+enum class ErrorKind { Runtime, Syntax, Type, Arity, DivideByZero, Exit };
 
 /// @brief Converts ErrorKind enum to char array
 /// @param kind ErrorKind enum
 /// @return char array with the enum literal
 inline const char* to_string(ErrorKind kind) {
-    static constexpr const char* names[] = {"Runtime", "Syntax", "Type", "Arity", "DivideByZero"};
+    static constexpr const char* names[] = {"Runtime", "Syntax", "Type", "Arity",
+                                             "DivideByZero", "Exit"};
     return names[static_cast<size_t>(kind)];
 }
 class Error {

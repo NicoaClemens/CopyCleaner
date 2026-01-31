@@ -9,7 +9,7 @@ namespace runtime_utils {
 
 std::optional<double> to_f64(const RuntimeValue& v) {
     if (std::holds_alternative<RuntimeValue::Int>(v.value))
-        return (double)std::get<RuntimeValue::Int>(v.value).value;
+        return static_cast<double>(std::get<RuntimeValue::Int>(v.value).value);
     if (std::holds_alternative<RuntimeValue::Float>(v.value))
         return std::get<RuntimeValue::Float>(v.value).value;
     return std::nullopt;
@@ -93,49 +93,22 @@ Result<RuntimeValue> numeric_div(const RuntimeValue& l, const RuntimeValue& r) {
 }
 
 Result<RuntimeValue> numeric_pow(const RuntimeValue& l, const RuntimeValue& r) {
-    if (std::holds_alternative<RuntimeValue::Int>(l.value) &&
-        std::holds_alternative<RuntimeValue::Int>(r.value)) {
-        auto a = std::get<RuntimeValue::Int>(l.value).value;
-        auto b = std::get<RuntimeValue::Int>(r.value).value;
-        if (b >= 0) {
-            long long res = 1;
-            for (long long i = 0; i < b; ++i) res *= a;
-            return ok(make_int(res));
-        }
-        return ok(make_float(std::pow((double)a, (double)b)));
-    }
+    // Use std::pow for all cases - cleaner and handles edge cases better
     if (auto la = to_f64(l); la.has_value()) {
-        if (auto rb = to_f64(r); rb.has_value())
-            return ok(make_float(std::pow(la.value(), rb.value())));
+        if (auto rb = to_f64(r); rb.has_value()) {
+            double result = std::pow(la.value(), rb.value());
+            // If both operands are ints and result is a whole number, return int
+            if (std::holds_alternative<RuntimeValue::Int>(l.value) &&
+                std::holds_alternative<RuntimeValue::Int>(r.value) &&
+                std::get<RuntimeValue::Int>(r.value).value >= 0 &&
+                result == std::floor(result)) {
+                return ok(make_int(static_cast<long long>(result)));
+            }
+            return ok(make_float(result));
+        }
     }
     return err<RuntimeValue>(
         std::make_shared<Error>("unsupported operand types for **", ErrorKind::Type));
-}
-
-Result<RuntimeValue> bool_and(const RuntimeValue& l, const RuntimeValue& r) {
-    if (std::holds_alternative<RuntimeValue::Bool>(l.value) &&
-        std::holds_alternative<RuntimeValue::Bool>(r.value)) {
-        bool a = std::get<RuntimeValue::Bool>(l.value).value;
-        bool b = std::get<RuntimeValue::Bool>(r.value).value;
-        RuntimeValue out;
-        out.value = RuntimeValue::Bool{a && b};
-        return ok(out);
-    }
-    return err<RuntimeValue>(
-        std::make_shared<Error>("unsupported operand types for &&", ErrorKind::Type));
-}
-
-Result<RuntimeValue> bool_or(const RuntimeValue& l, const RuntimeValue& r) {
-    if (std::holds_alternative<RuntimeValue::Bool>(l.value) &&
-        std::holds_alternative<RuntimeValue::Bool>(r.value)) {
-        bool a = std::get<RuntimeValue::Bool>(l.value).value;
-        bool b = std::get<RuntimeValue::Bool>(r.value).value;
-        RuntimeValue out;
-        out.value = RuntimeValue::Bool{a || b};
-        return ok(out);
-    }
-    return err<RuntimeValue>(
-        std::make_shared<Error>("unsupported operand types for ||", ErrorKind::Type));
 }
 
 Result<RuntimeValue> concat(const RuntimeValue& l, const RuntimeValue& r) {

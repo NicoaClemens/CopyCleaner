@@ -8,11 +8,12 @@
 
 - C++-inspired syntax with minor differences.
 - **No OOP**, **all code in a single file**, no includes.
-- **Semicolons required** everywhere (including after `{}` blocks). Last semicolon in a file is optional.
+- **Semicolons required** everywhere (including after `{}` blocks).
 - **Whitespace ignored**: line breaks, tabs, repeated spaces removed during parsing.
 - **Strings**: Line breaks allowed. A `\` before a line break continues the string without adding a newline.
 - **Top-down parsing**: Functions must be defined before use. No `main()` entry point.
 - **Comments**: `//` starts a single-line comment.
+- **Extensions**: No default set (yet), I've been using `.ccl` so far
 
 ---
 
@@ -21,6 +22,7 @@
 - **Typed variables**; local scopes exist for `if`/`elif`/`else`, loops, and functions. Variables outside these scopes are global.
 - **Implicit conversions**:
   - `int ↔ float`
+    - float -> int will be rounded down (truncated).
   - Any type can be converted to `string`
   - Explicit conversion syntax: `newType myVar(oldVar);`
 - empty initialiser defaults to null

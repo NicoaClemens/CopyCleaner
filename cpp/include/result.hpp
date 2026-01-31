@@ -24,9 +24,13 @@ class Result {
     explicit Result(T v) : data_(std::move(v)) {}
     explicit Result(std::shared_ptr<Error> e) : data_(std::move(e)) {}
 
+    /// @brief Checks if the Result contains a valid value (not an error)
+    /// @return true if Result holds a value, false if it holds an error
     bool is_ok() const noexcept {
         return std::holds_alternative<T>(data_);
     }
+    /// @brief Checks if the Result contains an error (not a valid value)
+    /// @return true if Result holds an error, false if it holds a value
     bool is_err() const noexcept {
         return std::holds_alternative<std::shared_ptr<Error>>(data_);
     }
@@ -49,9 +53,13 @@ class Result {
         return std::get<T>(std::move(data_));
     }
 
+    /// @brief Gets the error from the Result. Assumes Result contains an error
+    /// @return Reference to the shared_ptr containing the Error
     std::shared_ptr<Error>& error() & {
         return std::get<std::shared_ptr<Error>>(data_);
     }
+    /// @brief Gets the error from the Result (const version). Assumes Result contains an error
+    /// @return Const reference to the shared_ptr containing the Error
     const std::shared_ptr<Error>& error() const& {
         return std::get<std::shared_ptr<Error>>(data_);
     }
