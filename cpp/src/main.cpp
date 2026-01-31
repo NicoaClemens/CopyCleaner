@@ -37,10 +37,10 @@ int main(int argc, char* argv[]) {
     auto parse_result = parser.parse();
 
     if (is_err(parse_result)) {
-        std::cerr << "Parse error: " << parse_result.error()->message << std::endl;
-        if (parse_result.error()->span.has_value()) {
-            auto& span = parse_result.error()->span.value();
-            std::cerr << "  at line " << span.start.line << ", column " << span.start.column
+        std::cerr << "Parse error: " << parse_result.error()->what() << std::endl;
+        if (parse_result.error()->span().has_value()) {
+            auto& span = parse_result.error()->span().value();
+            std::cerr << "  at line " << span.p1.line << ", column " << span.p1.column 
                       << std::endl;
         }
         return 2;
@@ -48,22 +48,20 @@ int main(int argc, char* argv[]) {
 
     // Execution
     auto statements = std::move(parse_result).value();
-    runtime::Interpreter interpreter;
-    auto global_env = std::make_shared<runtime::Environment>(nullptr);
-
+    Interpreter interpreter;
+    auto global_env = std::make_shared<Environment>(nullptr);
     auto exec_result = interpreter.eval_statements(statements, *global_env);
 
     if (is_err(exec_result)) {
         auto& error = exec_result.error();
-        std::cerr << "Runtime error: " << error->message << std::endl;
-        if (error->span.has_value()) {
-            auto& span = error->span.value();
-            std::cerr << "  at line " << span.start.line << ", column " << span.start.column
-                      << std::endl;
+        std::cerr << "Runtime error: " << error->what() << std::endl;
+        if (error->span().has_value()) {
+            auto& span = error->span().value();
+            std::cerr << "  at line " << span.p1.line << ", column " << span.p1.column << std::endl;
         }
 
         // Check if this is a graceful exit
-        if (error->kind == ErrorKind::Exit) {
+        if (error->kind() == ErrorKind::Exit) {
             return 0;  // Program requested exit - not an error
         }
         return 3;

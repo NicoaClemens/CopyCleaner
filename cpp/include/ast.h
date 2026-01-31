@@ -122,7 +122,8 @@ struct Expr {
         ExprPtr expr;
     };
 
-    using Variant = std::variant<Literal, Variable, UnaryOp, BinaryOp, FunctionCall, Ternary, ListLiteral, TypeCast>;
+    using Variant = std::variant<Literal, Variable, UnaryOp, BinaryOp, FunctionCall, Ternary,
+                                 ListLiteral, TypeCast>;
 
     Span span;
     Variant value;
@@ -175,7 +176,8 @@ struct Statement {
     struct Break {};
     struct Continue {};
 
-    using Variant = std::variant<Assignment, VarDecl, If, While, Return, FunctionDef, Break, Continue>;
+    using Variant =
+        std::variant<Assignment, VarDecl, If, While, Return, FunctionDef, Break, Continue>;
 
     Variant value;
 };

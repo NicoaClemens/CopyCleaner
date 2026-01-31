@@ -14,14 +14,14 @@
 /**
  * @brief Categories of errors that can occur during parsing or execution
  */
-enum class ErrorKind { Runtime, Syntax, Type, Arity, DivideByZero, Exit };
+enum class ErrorKind { Runtime, Syntax, Type, Arity, DivideByZero, Exit, Parse };
 
 /// @brief Converts ErrorKind enum to char array
 /// @param kind ErrorKind enum
 /// @return char array with the enum literal
 inline const char* to_string(ErrorKind kind) {
     static constexpr const char* names[] = {"Runtime", "Syntax", "Type", "Arity",
-                                             "DivideByZero", "Exit"};
+                                             "DivideByZero", "Exit", "Parse"};
     return names[static_cast<size_t>(kind)];
 }
 class Error {
@@ -50,7 +50,7 @@ class Error {
      * @param kind The error category (default: Runtime)
      */
     Error(std::string message, const Span& span, ErrorKind kind = ErrorKind::Runtime)
-        : message_(std::move(message)), kind_(kind), span_(span) {}
+        : message_(std::move(message)), span_(span), kind_(kind) {}
 
     const std::string& what() const noexcept {
         return message_;

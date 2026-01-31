@@ -1,0 +1,6 @@
+// Test function definitions
+function add returns int(int a, int b) {
+    return a + b;
+};
+
+x = add(3, 4);

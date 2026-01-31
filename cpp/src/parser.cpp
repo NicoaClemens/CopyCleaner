@@ -420,7 +420,7 @@ Result<Expr> Parser::parse_ternary() {
         if (is_err(else_expr)) return else_expr;
 
         Expr result;
-        result.span = Span{expr.value().span.start, else_expr.value().span.end};
+        result.span = Span{expr.value().span.p1, else_expr.value().span.p2};
         result.value = Expr::Ternary{std::make_unique<Expr>(std::move(expr).value()),
                                      std::make_unique<Expr>(std::move(then_expr).value()),
                                      std::make_unique<Expr>(std::move(else_expr).value())};
@@ -441,7 +441,7 @@ Result<Expr> Parser::parse_logical_or() {
         Span left_span = left.value().span;
         Span right_span = right.value().span;
         Expr result;
-        result.span = Span{left_span.start, right_span.end};
+        result.span = Span{left_span.p1, right_span.p2};
         result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), Operator::Or,
                                       std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
@@ -461,7 +461,7 @@ Result<Expr> Parser::parse_logical_and() {
         Span left_span = left.value().span;
         Span right_span = right.value().span;
         Expr result;
-        result.span = Span{left_span.start, right_span.end};
+        result.span = Span{left_span.p1, right_span.p2};
         result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), Operator::And,
                                       std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
@@ -498,7 +498,7 @@ Result<Expr> Parser::parse_comparison() {
         Span left_span = left.value().span;
         Span right_span = right.value().span;
         Expr result;
-        result.span = Span{left_span.start, right_span.end};
+        result.span = Span{left_span.p1, right_span.p2};
         result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), op,
                                       std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
@@ -529,7 +529,7 @@ Result<Expr> Parser::parse_addition() {
         Span left_span = left.value().span;
         Span right_span = right.value().span;
         Expr result;
-        result.span = Span{left_span.start, right_span.end};
+        result.span = Span{left_span.p1, right_span.p2};
         result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), op,
                                       std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
@@ -558,7 +558,7 @@ Result<Expr> Parser::parse_multiplication() {
         Span left_span = left.value().span;
         Span right_span = right.value().span;
         Expr result;
-        result.span = Span{left_span.start, right_span.end};
+        result.span = Span{left_span.p1, right_span.p2};
         result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), op,
                                       std::make_unique<Expr>(std::move(right).value())};
         left = ok(result);
@@ -578,7 +578,7 @@ Result<Expr> Parser::parse_exponentiation() {
         Span left_span = left.value().span;
         Span right_span = right.value().span;
         Expr result;
-        result.span = Span{left_span.start, right_span.end};
+        result.span = Span{left_span.p1, right_span.p2};
         result.value = Expr::BinaryOp{std::make_unique<Expr>(std::move(left).value()), Operator::Pow,
                                       std::make_unique<Expr>(std::move(right).value())};
         return ok(result);
@@ -589,25 +589,25 @@ Result<Expr> Parser::parse_exponentiation() {
 
 Result<Expr> Parser::parse_unary() {
     if (check(TokenKind::Not)) {
-        Pos start = current_.span.start;
+        Pos start = current_.span.p1;
         advance();
         auto expr = parse_unary();
         if (is_err(expr)) return expr;
 
         Expr result;
-        result.span = Span{start, expr.value().span.end};
+        result.span = Span{start, expr.value().span.p2};
         result.value = Expr::UnaryOp{Operator::Not, std::make_unique<Expr>(std::move(expr).value())};
         return ok(result);
     }
 
     if (check(TokenKind::Minus)) {
-        Pos start = current_.span.start;
+        Pos start = current_.span.p1;
         advance();
         auto expr = parse_unary();
         if (is_err(expr)) return expr;
 
         Expr result;
-        result.span = Span{start, expr.value().span.end};
+        result.span = Span{start, expr.value().span.p2};
         result.value = Expr::UnaryOp{Operator::Neg, std::make_unique<Expr>(std::move(expr).value())};
         return ok(result);
     }
@@ -700,7 +700,7 @@ Result<Expr> Parser::parse_primary() {
 
         // Check for type cast or function call
         if (check(TokenKind::LParen)) {
-            Pos start = tok.span.start;
+            Pos start = tok.span.p1;
             advance();  // consume '('
 
             // Check if this is a type cast (type name followed by single expression)
@@ -748,7 +748,7 @@ Result<Expr> Parser::parse_primary() {
                 if (is_err(rparen)) return err<Expr>(rparen.error());
 
                 Expr expr;
-                expr.span = Span{start, rparen.value().span.end};
+                expr.span = Span{start, rparen.value().span.p2};
                 expr.value = Expr::TypeCast{cast_type, std::make_unique<Expr>(std::move(cast_expr).value())};
                 return ok(expr);
             }
@@ -767,7 +767,7 @@ Result<Expr> Parser::parse_primary() {
             if (is_err(rparen)) return err<Expr>(rparen.error());
 
             Expr expr;
-            expr.span = Span{tok.span.start, rparen.value().span.end};
+            expr.span = Span{tok.span.p1, rparen.value().span.p2};
             expr.value = Expr::FunctionCall{name, std::move(args)};
             return ok(expr);
         }
@@ -792,7 +792,7 @@ Result<Expr> Parser::parse_primary() {
 
     // List literal: {expr, expr, ...}
     if (check(TokenKind::LBrace)) {
-        Pos start = current_.span.start;
+        Pos start = current_.span.p1;
         advance();  // consume '{'
 
         std::vector<ExprPtr> elements;
@@ -808,7 +808,7 @@ Result<Expr> Parser::parse_primary() {
         if (is_err(rbrace)) return err<Expr>(rbrace.error());
 
         Expr expr;
-        expr.span = Span{start, rbrace.value().span.end};
+        expr.span = Span{start, rbrace.value().span.p2};
         expr.value = Expr::ListLiteral{std::move(elements)};
         return ok(expr);
     }

@@ -3,7 +3,7 @@
 
 #include "ast.h"
 
-#include "utils.hpp"
+#include "utils/utils.hpp"
 
 AstType::AstType(const AstType& other) {
     value = std::visit(
@@ -27,7 +27,7 @@ AstType& AstType::operator=(const AstType& other) {
     return *this;
 }
 
-Expr::Expr(const Expr& other) {
+Expr::Expr(const Expr& other) : span(other.span) {
     value = std::visit(
         [](const auto& v) -> Variant {
             using T = std::decay_t<decltype(v)>;

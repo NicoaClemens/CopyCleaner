@@ -6,8 +6,8 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "runtime_utils.h"
-#include "types_utils.hpp"
+#include "utils/runtime_utils.h"
+#include "utils/types_utils.hpp"
 
 std::optional<RuntimeValue> Environment::get(const std::string& name) {
     if (variables.contains(name)) return variables[name];
@@ -128,15 +128,9 @@ Result<ExecFlow> Interpreter::eval_statements(const std::vector<Statement>& stmt
         // Return
         if (auto r = std::get_if<Statement::Return>(&s.value)) {
             ExecFlow f;
-            if (r->expr.has_value()) {
-                auto e = this->eval_expr(*r->expr, env.shared_from_this());
-                if (is_err(e)) return err<ExecFlow>(e.error());
-                f.value = ExecFlow::Return{e.value()};
-            } else {
-                RuntimeValue n;
-                n.value = RuntimeValue::Null{};
-                f.value = ExecFlow::Return{n};
-            }
+            auto e = this->eval_expr(r->value, env.shared_from_this());
+            if (is_err(e)) return err<ExecFlow>(e.error());
+            f.value = ExecFlow::Return{e.value()};
             return ok(f);
         }
 
@@ -157,21 +151,14 @@ Result<ExecFlow> Interpreter::eval_statements(const std::vector<Statement>& stmt
         // FunctionDef
         if (auto fd = std::get_if<Statement::FunctionDef>(&s.value)) {
             MethodRepr method;
-            method.name = fd->name;
-            method.params = fd->params;
-            method.body = fd->body;
-            method.return_type = fd->return_type;
-
-            RuntimeValue v;
-            v.value = RuntimeValue::Method{method};
-            env.set(fd->name, v);
-            continue;
-        }
-
-        // Expression statement
-        if (auto e = std::get_if<Statement::Expression>(&s.value)) {
-            auto r = this->eval_expr(e->expr, env.shared_from_this());
-            if (is_err(r)) return err<ExecFlow>(r.error());
+            method.args = fd->params;
+            method.returnType = fd->return_type.value_or(astCreateNull());
+            // Copy the function body statements
+            method.body.clear();
+            for (const auto& stmt_ptr : fd->body) {
+                method.body.push_back(*stmt_ptr);
+            }
+            this->functions[fd->name] = method;
             continue;
         }
     }
@@ -260,21 +247,15 @@ Result<ExecFlow> Interpreter::eval_statements(const std::vector<StmtPtr>& stmts,
                 if (std::holds_alternative<ExecFlow::Return>(flow.value().value)) return flow;
                 if (std::holds_alternative<ExecFlow::Break>(flow.value().value)) break;
             }
-            \n continue;
+            continue;
         }
 
         // Return
         if (auto r = std::get_if<Statement::Return>(&s.value)) {
             ExecFlow f;
-            if (r->expr.has_value()) {
-                auto e = this->eval_expr(*r->expr, env.shared_from_this());
-                if (is_err(e)) return err<ExecFlow>(e.error());
-                f.value = ExecFlow::Return{e.value()};
-            } else {
-                RuntimeValue n;
-                n.value = RuntimeValue::Null{};
-                f.value = ExecFlow::Return{n};
-            }
+            auto e = this->eval_expr(r->value, env.shared_from_this());
+            if (is_err(e)) return err<ExecFlow>(e.error());
+            f.value = ExecFlow::Return{e.value()};
             return ok(f);
         }
 
@@ -295,21 +276,14 @@ Result<ExecFlow> Interpreter::eval_statements(const std::vector<StmtPtr>& stmts,
         // FunctionDef
         if (auto fd = std::get_if<Statement::FunctionDef>(&s.value)) {
             MethodRepr method;
-            method.name = fd->name;
-            method.params = fd->params;
-            method.body = fd->body;
-            method.return_type = fd->return_type;
-
-            RuntimeValue v;
-            v.value = RuntimeValue::Method{method};
-            env.set(fd->name, v);
-            continue;
-        }
-
-        // Expression statement
-        if (auto e = std::get_if<Statement::Expression>(&s.value)) {
-            auto r = this->eval_expr(e->expr, env.shared_from_this());
-            if (is_err(r)) return err<ExecFlow>(r.error());
+            method.args = fd->params;
+            method.returnType = fd->return_type.value_or(astCreateNull());
+            // Copy the function body statements
+            method.body.clear();
+            for (const auto& stmt_ptr : fd->body) {
+                method.body.push_back(*stmt_ptr);
+            }
+            this->functions[fd->name] = method;
             continue;
         }
     }
@@ -480,7 +454,7 @@ Result<RuntimeValue> Interpreter::eval_expr(const Expr& expr, env_ptr env) {
     }
 
     if (std::holds_alternative<E::FunctionCall>(expr.value)) {
-        auto fc = std::get<E::FunctionCall>(expr.value);
+        const auto& fc = std::get<E::FunctionCall>(expr.value);
         std::vector<RuntimeValue> eval_args;
         for (auto& a : fc.args) {
             auto ar = this->eval_expr(*a, env);
