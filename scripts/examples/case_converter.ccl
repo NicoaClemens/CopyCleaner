@@ -1,0 +1,54 @@
+// Text Case Converter - Convert clipboard text to different cases
+
+string input() = clipboard_read();
+
+if (input.length() == 0) {
+    showAlertOK("Error", "Clipboard is empty!");
+    exit();
+};
+int choice() = showAlertYesNoCancel(
+    "Case Converter",
+    "Yes = UPPERCASE \nNo = lowercase \nCancel = Title Case"
+);
+
+string output("");
+
+if (choice == 0) {
+    // UPPERCASE
+    output = input.toUpper();
+} elif (choice == 1) {
+    // lowercase
+    output = input.toLower();
+} else {
+    // Title Case - capitalize first letter of each word
+    string lower() = input.toLower();
+    list<string> words() = lower.split(" ");
+    
+    string result("");
+    int i(0);
+    int word_count() = words.length();
+    
+    while (i < word_count) {
+        string word() = words.get(i);
+        
+        if (word.length() > 0) {
+            string first_char() = word.substring(0, 1).toUpper();
+            int word_len() = word.length();
+            string rest() = word.substring(1, word_len);
+            string capitalized() = first_char ++ rest;
+            
+            result = result ++ capitalized;
+        };
+        
+        if (i < word_count - 1) {
+            result = result ++ " ";
+        };
+        
+        i = i + 1;
+    };
+    
+    output = result;
+};
+
+clipboard_write(output);
+showAlertOK("Complete", "Text converted and copied to clipboard!");

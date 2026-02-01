@@ -1,0 +1,56 @@
+// Line Deduplicator
+// Remove duplicate lines from clipboard text
+
+string input() = clipboard_read();
+
+if (input.length() == 0) {
+    showAlertOK("Error", "Clipboard is empty!");
+    exit();
+};
+
+list<string> lines() = input.split("\n");
+int total_lines() = lines.length();
+
+list<string> unique_lines({});
+list<string> seen({});
+
+int i(0);
+while (i < total_lines) {
+    string line() = lines.get(i).trim();
+    
+    if (line.length() > 0) {
+        boolean is_duplicate() = seen.contains(line);
+        
+        if (!is_duplicate) {
+            unique_lines = unique_lines.push(line);
+            seen = seen.push(line);
+        };
+    };
+    
+    i = i + 1;
+};
+
+// Build output
+string output("");
+int unique_count() = unique_lines.length();
+int j(0);
+
+while (j < unique_count) {
+    string line() = unique_lines.get(j);
+    output = output ++ line;
+    
+    // Add newline except after last line
+    if (j < unique_count - 1) {
+        output = output ++ "
+";
+    };
+    
+    j = j + 1;
+};
+
+clipboard_write(output);
+
+int removed() = total_lines - unique_count;
+string msg() = "Removed " ++ string(removed) ++ " duplicate line(s).\nOriginal: " ++ string(total_lines) ++ " lines\nResult: " ++ string(unique_count) ++ " unique lines";
+
+showAlertOK("Deduplication Complete", msg);

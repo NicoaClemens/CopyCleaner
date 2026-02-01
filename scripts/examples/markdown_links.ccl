@@ -1,0 +1,44 @@
+// Markdown Link Formatter - Converts URLs to [text](url) format
+
+string input() = clipboard_read();
+
+if (input.length() == 0) {
+    showAlertOK("Error", "Clipboard is empty!");
+    exit();
+};
+
+regex url_pattern(/https?:\/\/[^\s<>"{}|\\^`\[\]]+/);
+
+list<match> urls() = url_pattern.getAll(input);
+int url_count() = urls.length();
+
+if (url_count == 0) {
+    showAlertOK("No URLs", "No URLs found in clipboard text.");
+    exit();
+};
+
+// Replace each URL with markdown link format
+string output() = input;
+int i(0);
+
+while (i < url_count) {
+    match url() = urls.get(i);
+    string url_text() = url.content;
+    
+    string domain() = url_text.replace("https://", "").replace("http://", "");
+    
+    int slash_pos() = domain.indexOf("/");
+    if (slash_pos > 0) {
+        domain = domain.substring(0, slash_pos);
+    };
+    
+    string markdown_link() = "[" ++ domain ++ "](" ++ url_text ++ ")";
+    
+    output = output.replace(url_text, markdown_link);
+    
+    i = i + 1;
+};
+
+clipboard_write(output);
+string msg() = "Converted " ++ string(url_count) ++ " URL(s) to markdown links.";
+showAlertOK("Success", msg);

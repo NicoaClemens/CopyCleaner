@@ -361,6 +361,8 @@ Token Lexer::read_operator_or_punct(Pos start) {
             return Token{TokenKind::Question, std::string(lex), Span{start, end}};
         case ':':
             return Token{TokenKind::Colon, std::string(lex), Span{start, end}};
+        case '.':
+            return Token{TokenKind::Dot, std::string(lex), Span{start, end}};
         default:
             return Token{TokenKind::Unknown, std::string(lex), Span{start, end}};
     }

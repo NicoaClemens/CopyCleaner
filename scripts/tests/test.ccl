@@ -1,2 +1,0 @@
-// Test regex with backslash syntax
-r = \d+\gi;

@@ -45,6 +45,8 @@ Expr::Expr(const Expr& other) : span(other.span) {
                 return ListLiteral{utils::clone(v.elements)};
             } else if constexpr (std::is_same_v<T, TypeCast>) {
                 return TypeCast{v.target_type, utils::clone(v.expr)};
+            } else if constexpr (std::is_same_v<T, MemberAccess>) {
+                return MemberAccess{utils::clone(v.object), v.member};
             } else {
                 return v;
             }

@@ -5,6 +5,8 @@
 
 #include <cmath>
 
+#include "utils/variant_utils.hpp"
+
 namespace runtime_utils {
 
 std::optional<double> to_f64(const RuntimeValue& v) {
@@ -203,6 +205,148 @@ Result<RuntimeValue> compare_le(const RuntimeValue& l, const RuntimeValue& r) {
     }
     return err<RuntimeValue>(
         std::make_shared<Error>("unsupported operand types for <=", ErrorKind::Type));
+}
+
+Result<RuntimeValue> eval_binary_op(Operator op, const RuntimeValue& left, const RuntimeValue& right) {
+    switch (op) {
+        case Operator::Add:
+            return numeric_add(left, right);
+        case Operator::Sub:
+            return numeric_sub(left, right);
+        case Operator::Mul:
+            return numeric_mul(left, right);
+        case Operator::Div:
+            return numeric_div(left, right);
+        case Operator::Pow:
+            return numeric_pow(left, right);
+        case Operator::Eq: {
+            RuntimeValue out;
+            out.value = RuntimeValue::Bool{left == right};
+            return ok(out);
+        }
+        case Operator::Ne: {
+            RuntimeValue out;
+            out.value = RuntimeValue::Bool{left != right};
+            return ok(out);
+        }
+        case Operator::Gt:
+            return compare_gt(left, right);
+        case Operator::Lt:
+            return compare_lt(left, right);
+        case Operator::Ge:
+            return compare_ge(left, right);
+        case Operator::Le:
+            return compare_le(left, right);
+        case Operator::Concat:
+            return concat(left, right);
+        default:
+            return err<RuntimeValue>(
+                std::make_shared<Error>("unsupported binary operator", ErrorKind::Runtime));
+    }
+}
+
+Result<RuntimeValue> cast_value(const RuntimeValue& val, const AstType& target_type) {
+    return std::visit(
+        overloaded{
+            [&val](const AstType::Int&) -> Result<RuntimeValue> {
+                if (std::holds_alternative<RuntimeValue::Int>(val.value)) {
+                    return ok(val);
+                }
+                if (std::holds_alternative<RuntimeValue::Float>(val.value)) {
+                    auto f = std::get<RuntimeValue::Float>(val.value).value;
+                    RuntimeValue result;
+                    result.value = RuntimeValue::Int{static_cast<int64_t>(f)};
+                    return ok(result);
+                }
+                if (std::holds_alternative<RuntimeValue::Bool>(val.value)) {
+                    auto b = std::get<RuntimeValue::Bool>(val.value).value;
+                    RuntimeValue result;
+                    result.value = RuntimeValue::Int{b ? 1 : 0};
+                    return ok(result);
+                }
+                return err<RuntimeValue>(std::make_shared<Error>(
+                    "cannot cast to int from this type", ErrorKind::Type));
+            },
+            [&val](const AstType::Float&) -> Result<RuntimeValue> {
+                if (std::holds_alternative<RuntimeValue::Float>(val.value)) {
+                    return ok(val);
+                }
+                if (std::holds_alternative<RuntimeValue::Int>(val.value)) {
+                    auto i = std::get<RuntimeValue::Int>(val.value).value;
+                    RuntimeValue result;
+                    result.value = RuntimeValue::Float{static_cast<double>(i)};
+                    return ok(result);
+                }
+                return err<RuntimeValue>(std::make_shared<Error>(
+                    "cannot cast to float from this type", ErrorKind::Type));
+            },
+            [&val](const AstType::String&) -> Result<RuntimeValue> {
+                RuntimeValue result;
+                result.value = RuntimeValue::String{to_string(val)};
+                return ok(result);
+            },
+            [&val](const AstType::Bool&) -> Result<RuntimeValue> {
+                RuntimeValue result;
+                result.value = RuntimeValue::Bool{is_truthy(val)};
+                return ok(result);
+            },
+            [](const auto&) -> Result<RuntimeValue> {
+                return err<RuntimeValue>(std::make_shared<Error>(
+                    "type casting not supported for this target type", ErrorKind::Type));
+            }
+        },
+        target_type.value);
+}
+
+Result<RuntimeValue> access_member(const RuntimeValue& obj, const std::string& member) {
+    // Regex members
+    if (std::holds_alternative<RuntimeValue::Regex>(obj.value)) {
+        auto& regex_val = std::get<RuntimeValue::Regex>(obj.value);
+        if (member == "re") {
+            RuntimeValue result;
+            result.value = RuntimeValue::String{regex_val.re.literal};
+            return ok(result);
+        }
+        if (member == "flags") {
+            RuntimeValue result;
+            result.value = RuntimeValue::String{regex_val.re.flags};
+            return ok(result);
+        }
+        return err<RuntimeValue>(std::make_shared<Error>(
+            "regex type has no member '" + member + "'", ErrorKind::Runtime));
+    }
+
+    // Match members
+    if (std::holds_alternative<RuntimeValue::Match>(obj.value)) {
+        auto& match_val = std::get<RuntimeValue::Match>(obj.value);
+        if (member == "start") {
+            RuntimeValue result;
+            result.value = RuntimeValue::Int{static_cast<int64_t>(match_val.start)};
+            return ok(result);
+        }
+        if (member == "end") {
+            RuntimeValue result;
+            result.value = RuntimeValue::Int{static_cast<int64_t>(match_val.end)};
+            return ok(result);
+        }
+        if (member == "content") {
+            RuntimeValue result;
+            result.value = RuntimeValue::String{match_val.content};
+            return ok(result);
+        }
+        return err<RuntimeValue>(std::make_shared<Error>(
+            "match type has no member '" + member + "'", ErrorKind::Runtime));
+    }
+
+    // List error
+    if (std::holds_alternative<RuntimeValue::List>(obj.value)) {
+        return err<RuntimeValue>(std::make_shared<Error>(
+            "list member access requires method call syntax (e.g., .get(index))",
+            ErrorKind::Runtime));
+    }
+
+    return err<RuntimeValue>(std::make_shared<Error>(
+        "member access not supported for this type", ErrorKind::Runtime));
 }
 
 }  // namespace runtime_utils

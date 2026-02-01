@@ -31,13 +31,13 @@
   
 | Type | Example | Notes / Members / Methods |
 | ---- | ------- | ------------------------- |
-| `string` | `string s("Hello")` | Multi-line strings are allowed but line breaks will appear in the finished string. Use `\` just before the line break to prevent the line break to be added into the string. |
+| `string` | `string s("Hello")` | Multi-line strings are allowed but line breaks will appear in the finished string. Use `\` just before the line break to prevent the line break to be added into the string. Methods: `.length()`, `.hasMatch(match)`, `.replaceMatch(match, str)`, `.replace(old, new)`, `.substring(start, end)`, `.toUpper()`, `.toLower()`, `.trim()`, `.split(delimiter)`, `.contains(substring)`, `.startsWith(prefix)`, `.endsWith(suffix)`, `.indexOf(substring)` |
 | `int` | `int n(-4)` | - |
 | `float` | `float f(1.5)` | - |
 | `boolean` | `boolean b(true)` | - |
 | `regex` | `regex r(\^[a-zA-Z0-9_]\, "rm")` | Methods: `.getAll(string)` → `list<match>`; Members: `.re`, `.flags` |
-| `list<T>` | `list<int> l({1,2,3})` | Methods: `.get(index)`. Negative index returns item at index counted backwards from end of list. |
-| `match` | N/A | Returned by regex `.get()`, Members: `.start`, `.end`, `.content`. |
+| `list<T>` | `list<int> l({1,2,3})` | Methods: `.get(index)` (negative index counts from end), `.length()`, `.push(element)`, `.contains(element)`, `.indexOf(element)`, `.slice(start, end)` (supports negative indices) |
+| `match` | N/A | Returned by regex `.getAll()`, Members: `.start`, `.end`, `.content` |
 
 ---
 

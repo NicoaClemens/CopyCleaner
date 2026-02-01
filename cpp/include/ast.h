@@ -121,9 +121,13 @@ struct Expr {
         AstType target_type;
         ExprPtr expr;
     };
+    struct MemberAccess {
+        ExprPtr object;
+        std::string member;
+    };
 
     using Variant = std::variant<Literal, Variable, UnaryOp, BinaryOp, FunctionCall, Ternary,
-                                 ListLiteral, TypeCast>;
+                                 ListLiteral, TypeCast, MemberAccess>;
 
     Span span;
     Variant value;
@@ -176,8 +180,12 @@ struct Statement {
     struct Break {};
     struct Continue {};
 
+    struct ExpressionStmt {
+        Expr expr;
+    };
+
     using Variant =
-        std::variant<Assignment, VarDecl, If, While, Return, FunctionDef, Break, Continue>;
+        std::variant<Assignment, VarDecl, If, While, Return, FunctionDef, Break, Continue, ExpressionStmt>;
 
     Variant value;
 };

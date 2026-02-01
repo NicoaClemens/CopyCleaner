@@ -55,6 +55,7 @@ enum class TokenKind {
     Not,
     Question,
     Colon,
+    Dot,
     EndOfFile,
     Unknown
 };

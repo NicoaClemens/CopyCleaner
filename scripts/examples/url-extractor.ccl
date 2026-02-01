@@ -1,0 +1,33 @@
+// URL Extractor - Finds all URLs in clipboard and formats them as a list
+
+string input() = clipboard_read();
+
+if (input.length() == 0) {
+    showAlertOK("Error", "Clipboard is empty!");
+    exit();
+};
+
+// Regex pattern for URLs (simplified but covers most cases)
+regex url_pattern(/https?:\/\/[^\s<>"{}|\\^`\[\]]+/i);
+
+list<match> urls() = url_pattern.getAll(input);
+int count() = urls.length();
+
+if (count == 0) {
+    showAlertOK("No URLs Found", "No URLs were detected in the clipboard.");
+    exit();
+};
+
+// Build formatted output
+string output("Found " ++ string(count) ++ " URL(s):\n");
+
+int i(0);
+while (i < count) {
+    match url() = urls.get(i);
+    string num() = string(i + 1);
+    output = output ++ num ++ ". " ++ url.content ++ "\n";
+    i = i + 1;
+};
+
+clipboard_write(output);
+showAlertOK("URLs Extracted", "Formatted " ++ string(count) ++ " URLs to clipboard.");

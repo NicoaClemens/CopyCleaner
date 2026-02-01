@@ -1,0 +1,35 @@
+{
+  "name": "copycleaner-language",
+  "displayName": "CopyCleaner Language Support",
+  "description": "Syntax highlighting and language support for CopyCleaner scripting language",
+  "version": "0.1.0",
+  "publisher": "NicoaClemens",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "copycleaner",
+        "aliases": [
+          "CopyCleaner",
+          "copycleaner"
+        ],
+        "extensions": [
+          ".ccl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "copycleaner",
+        "scopeName": "source.copycleaner",
+        "path": "./syntaxes/copycleaner.tmLanguage.json"
+      }
+    ]
+  }
+}

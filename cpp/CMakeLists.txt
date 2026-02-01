@@ -16,6 +16,15 @@ set(SOURCES
     src/parser.cpp
     src/runtime.cpp
     src/utils/runtime_utils.cpp
+    src/utils/builtin_functions.cpp
+    src/utils/string_methods.cpp
+    src/utils/list_methods.cpp
+    src/utils/regex_methods.cpp
+    src/utils/method_dispatcher.cpp
+    src/builtins/logger.cpp
+    src/builtins/console.cpp
+    src/builtins/clipboard.cpp
+    src/builtins/alert.cpp
     src/main.cpp
 )
 
@@ -30,9 +39,18 @@ set(HEADERS
     include/runtime_value.h
     include/runtime.h
     include/utils/runtime_utils.h
+    include/utils/builtin_functions.h
     include/utils/types_utils.hpp
     include/utils/utils.hpp
     include/utils/variant_utils.hpp
+    include/utils/string_methods.hpp
+    include/utils/list_methods.hpp
+    include/utils/regex_methods.hpp
+    include/utils/method_dispatcher.hpp
+    include/builtins/logger.h
+    include/builtins/console.h
+    include/builtins/clipboard.h
+    include/builtins/alert.h
 )
 
 # Create executable

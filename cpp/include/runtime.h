@@ -12,6 +12,10 @@
 #include <vector>
 
 #include "ast.h"
+#include "builtins/alert.h"
+#include "builtins/clipboard.h"
+#include "builtins/console.h"
+#include "builtins/logger.h"
 #include "errors.hpp"
 #include "result.hpp"
 #include "runtime_value.h"
@@ -63,6 +67,10 @@ struct MethodRepr {
 struct Interpreter {
     env_ptr global_env = std::make_shared<Environment>();
     std::unordered_map<std::string, MethodRepr> functions;
+    builtins::Logger logger;
+    builtins::Console console;
+    builtins::Clipboard clipboard;
+    builtins::Alert alert;
 
     /// @brief Executes a list of statements and returns the final result
     /// @param stmts Vector of statements to execute

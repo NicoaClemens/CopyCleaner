@@ -1,0 +1,60 @@
+string input() = clipboard_read();
+
+if (input.length() == 0) {
+    showAlertOK("Error", "Clipboard is empty!");
+    exit();
+};
+
+// Pattern: "name": "value" or "name": value (for numbers)
+regex name_pattern(/"name"\s*:\s*"([^"]+)"/);
+
+list<match> matches() = name_pattern.getAll(input);
+int count() = matches.length();
+
+if (count == 0) {
+    // Try numeric/boolean values
+    regex name_num_pattern(/"name"\s*:\s*([^,}\s]+)/);
+    matches = name_num_pattern.getAll(input);
+    count = matches.length();
+};
+
+if (count == 0) {
+    showAlertOK("Not Found", "No 'name' fields found in JSON.");
+    exit();
+};
+
+// Extract the actual values (everything after the first quote or colon)
+string output("Extracted 'name' values:
+
+");
+
+int i(0);
+while (i < count) {
+    match m() = matches.get(i);
+    string matched_text() = m.content;
+    
+    // Extract just the value part after the colon
+    // matched_text looks like: "name": "value"
+    int colon_pos() = matched_text.indexOf(":");
+    int text_len() = matched_text.length();
+    string after_colon() = matched_text.substring(colon_pos + 1, text_len).trim();
+    
+    // Remove quotes
+    string value_part() = after_colon;
+    if (value_part.startsWith("\"")) {
+        int val_len() = value_part.length();
+        value_part = value_part.substring(1, val_len);
+    };
+    if (value_part.endsWith("\"")) {
+        int val_len2() = value_part.length();
+        value_part = value_part.substring(0, val_len2 - 1);
+    };
+    
+    output = output ++ string(i + 1) ++ ". " ++ value_part ++ "
+";
+    i = i + 1;
+};
+
+clipboard_write(output);
+string msg() = "Extracted " ++ string(count) ++ " value(s).";
+showAlertOK("Success", msg);

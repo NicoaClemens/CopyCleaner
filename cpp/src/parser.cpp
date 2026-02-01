@@ -51,6 +51,29 @@ Token Parser::peek() {
     return current_;
 }
 
+Token Parser::peek_ahead(int offset) {
+    // Save current state
+    auto saved_lexer = lexer_;
+    Token saved_current = current_;
+    
+    // Advance by offset tokens
+    Token result = current_;
+    for (int i = 0; i < offset; ++i) {
+        auto next = lexer_.next_token();
+        if (is_ok(next)) {
+            result = next.value();
+        } else {
+            break;
+        }
+    }
+    
+    // Restore state
+    lexer_ = saved_lexer;
+    current_ = saved_current;
+    
+    return result;
+}
+
 Token Parser::advance() {
     Token prev = current_;
     auto result = lexer_.next_token();
@@ -119,8 +142,13 @@ Result<Statement> Parser::parse_statement() {
             ident == "string" || ident == "regex" || ident == "match" || ident == "list") {
             return parse_var_declaration();
         }
-        // Otherwise it's an assignment
-        return parse_assignment();
+        // Check if next token is '=' (assignment) or '(' (function call / expression statement)
+        // Save current position to potentially backtrack
+        if (peek_ahead(1).kind == TokenKind::Assign) {
+            return parse_assignment();
+        }
+        // Otherwise, try to parse as expression statement
+        return parse_expression_statement();
     }
 
     return err<Statement>(
@@ -358,6 +386,18 @@ Result<Statement> Parser::parse_return_statement() {
 
     Statement stmt;
     stmt.value = Statement::Return{expr.value()};
+    return ok(stmt);
+}
+
+Result<Statement> Parser::parse_expression_statement() {
+    auto expr = parse_expression();
+    if (is_err(expr)) return err<Statement>(expr.error());
+
+    auto semi = expect(TokenKind::Semicolon, "expected ';' after expression");
+    if (is_err(semi)) return err<Statement>(semi.error());
+
+    Statement stmt;
+    stmt.value = Statement::ExpressionStmt{expr.value()};
     return ok(stmt);
 }
 
@@ -612,7 +652,57 @@ Result<Expr> Parser::parse_unary() {
         return ok(result);
     }
 
-    return parse_primary();
+    return parse_postfix();
+}
+
+Result<Expr> Parser::parse_postfix() {
+    auto expr = parse_primary();
+    if (is_err(expr)) return expr;
+
+    // Handle member access and method calls: expr.member or expr.method(args)
+    while (match(TokenKind::Dot)) {
+        auto member_tok = expect(TokenKind::Identifier, "expected member name after '.'");
+        if (is_err(member_tok)) return err<Expr>(member_tok.error());
+
+        std::string member_name = member_tok.value().lexeme;
+
+        // Check if this is a method call: .method(args)
+        if (check(TokenKind::LParen)) {
+            advance();  // consume '('
+            
+            std::vector<ExprPtr> args;
+            if (!check(TokenKind::RParen)) {
+                do {
+                    auto arg = parse_expression();
+                    if (is_err(arg)) return arg;
+                    args.push_back(std::make_unique<Expr>(arg.value()));
+                } while (match(TokenKind::Comma));
+            }
+
+            auto rparen = expect(TokenKind::RParen, "expected ')' after method arguments");
+            if (is_err(rparen)) return err<Expr>(rparen.error());
+
+            // Create a special function call with the object as first arg (receiver)
+            args.insert(args.begin(), std::make_unique<Expr>(std::move(expr).value()));
+            
+            Expr result;
+            result.span = Span{args[0]->span.p1, rparen.value().span.p2};
+            // Use special naming for method calls: __method_memberName
+            result.value = Expr::FunctionCall{"__method_" + member_name, std::move(args)};
+            expr = ok(std::move(result));
+        } else {
+            // Regular member access
+            Expr result;
+            result.span = Span{expr.value().span.p1, member_tok.value().span.p2};
+            result.value = Expr::MemberAccess{
+                std::make_unique<Expr>(std::move(expr).value()),
+                member_name
+            };
+            expr = ok(std::move(result));
+        }
+    }
+
+    return expr;
 }
 
 Result<Expr> Parser::parse_primary() {

@@ -1,0 +1,64 @@
+// CSV Column Extractor 
+
+setLog("csv_extractor.log");
+
+string input() = clipboard_read();
+
+if (input.length() == 0) {
+    showAlertOK("Error", "Clipboard is empty!");
+    exit();
+};
+
+list<string> lines() = input.split("\n");
+int line_count() = lines.length();
+
+if (line_count < 2) {
+    showAlertOK("Error", "Need at least a header row and one data row.");
+    exit();
+};
+
+string header_line() = lines.get(0);
+list<string> headers() = header_line.split(",");
+int col_count() = headers.length();
+
+string header_list("");
+int h(0);
+while (h < col_count) {
+    string header() = headers.get(h).trim();
+header_list = header_list ++ string(h) ++ ": " ++ header ++ "\n";
+    h = h + 1;
+};
+
+int col1(0);
+int col2(2);
+
+log("Extracting columns 0 and 2");
+
+
+// Add header
+string h1() = headers.get(col1).trim();
+string h2() = headers.get(col2).trim();
+string output("") = h1 ++ "," ++ h2 ++ "\n";
+
+int i(1);
+while (i < line_count) {
+    string line() = lines.get(i).trim();
+    
+    if (line.length() > 0) {
+        list<string> cols() = line.split(",");
+        int row_col_count() = cols.length();
+        
+        if (row_col_count > col2) {
+            string val1() = cols.get(col1).trim();
+            string val2() = cols.get(col2).trim();
+            output = output ++ val1 ++ "," ++ val2 ++ "\n";
+        };
+    };
+    
+    i = i + 1;
+};
+
+clipboard_write(output);
+log("Extraction complete");
+string msg() = "Extracted columns 0 and 2 from " ++ string(line_count - 1) ++ " rows.";
+showAlertOK("Success", msg);

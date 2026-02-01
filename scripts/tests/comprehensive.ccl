@@ -1,0 +1,61 @@
+// Comprehensive test suite for CopyCleaner
+
+// Variables & types
+int x(42);
+float pi(3.14);
+boolean flag(true);
+string text("Hello World");
+
+// Arithmetic
+int sum() = 10 + 5;
+int prod() = 3 * 4;
+float div() = 10.0 / 3.0;
+int power() = 2 ** 3;
+
+// Comparison & logical
+boolean gt() = 10 > 5;
+boolean eq() = 5 == 5;
+boolean and() = true && false;
+boolean or() = true || false;
+boolean not() = !false;
+
+// String operations
+string concat() = "Hello" ++ " " ++ "World";
+int slen() = text.length();
+string upper() = text.toUpper();
+boolean contains() = text.contains("World");
+string substr() = text.substring(0, 5);
+
+// Lists
+list<int> nums({10, 20, 30});
+int first() = nums.get(0);
+int llen() = nums.length();
+list<int> pushed() = nums.push(40);
+boolean has() = nums.contains(20);
+
+// Regex
+regex pattern(/\d+/);
+string data("Price: 123");
+list<match> matches() = pattern.getAll(data);
+match m() = matches.get(0);
+int mstart() = m.start;
+string mcontent() = m.content;
+
+// Control flow
+if (x > 40) {
+    int y(1);
+};
+
+int i(0);
+while (i < 3) {
+    i = i + 1;
+};
+
+// Functions
+function add returns int(int a, int b) {
+    return a + b;
+};
+int result() = add(5, 3);
+
+// Builtins
+print("Tests completed successfully");

@@ -28,6 +28,7 @@ class Parser {
     Result<Statement> parse_while_statement();
     Result<Statement> parse_function_def();
     Result<Statement> parse_return_statement();
+    Result<Statement> parse_expression_statement();
 
     // Expression parsing (precedence climbing)
     Result<Expr> parse_expression();
@@ -39,6 +40,7 @@ class Parser {
     Result<Expr> parse_multiplication();
     Result<Expr> parse_exponentiation();
     Result<Expr> parse_unary();
+    Result<Expr> parse_postfix();
     Result<Expr> parse_primary();
 
     // Type parsing
@@ -46,6 +48,7 @@ class Parser {
 
     // Helpers
     lexer::Token peek();
+    lexer::Token peek_ahead(int offset);
     lexer::Token advance();
     bool check(lexer::TokenKind kind);
     bool match(lexer::TokenKind kind);

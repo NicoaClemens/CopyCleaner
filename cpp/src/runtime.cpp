@@ -5,7 +5,10 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <regex>
 
+#include "utils/builtin_functions.h"
+#include "utils/method_dispatcher.hpp"
 #include "utils/runtime_utils.h"
 #include "utils/types_utils.hpp"
 
@@ -16,6 +19,22 @@ std::optional<RuntimeValue> Environment::get(const std::string& name) {
 }
 
 void Environment::set(const std::string& name, const RuntimeValue& value) {
+    // Check if variable exists in current scope
+    if (variables.contains(name)) {
+        variables[name] = value;
+        return;
+    }
+    // Check if variable exists in parent scope
+    if (parent) {
+        auto parent_var = parent->get(name);
+        if (parent_var.has_value()) {
+            // Variable exists in parent scope, update it there
+            parent->set(name, value);
+            return;
+        }
+    }
+    // Variable doesn't exist anywhere - this is an error for Assignment
+    // But VarDecl will call this after creating the variable, so we create it
     variables[name] = value;
 }
 
@@ -161,6 +180,14 @@ Result<ExecFlow> Interpreter::eval_statements(const std::vector<Statement>& stmt
             this->functions[fd->name] = method;
             continue;
         }
+
+        // Expression statement
+        if (auto es = std::get_if<Statement::ExpressionStmt>(&s.value)) {
+            auto r = this->eval_expr(es->expr, env.shared_from_this());
+            if (is_err(r)) return err<ExecFlow>(r.error());
+            // Discard the result
+            continue;
+        }
     }
     ExecFlow f;
     f.value = ExecFlow::None{};
@@ -286,6 +313,14 @@ Result<ExecFlow> Interpreter::eval_statements(const std::vector<StmtPtr>& stmts,
             this->functions[fd->name] = method;
             continue;
         }
+
+        // Expression statement
+        if (auto es = std::get_if<Statement::ExpressionStmt>(&s.value)) {
+            auto r = this->eval_expr(es->expr, env.shared_from_this());
+            if (is_err(r)) return err<ExecFlow>(r.error());
+            // Discard the result
+            continue;
+        }
     }
     ExecFlow f;
     f.value = ExecFlow::None{};
@@ -374,83 +409,7 @@ Result<RuntimeValue> Interpreter::eval_expr(const Expr& expr, env_ptr env) {
             return ok(out);
         }
 
-        switch (b.op) {
-            case Operator::Add: {
-                auto res = runtime_utils::numeric_add(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for +", ErrorKind::Type));
-            }
-            case Operator::Sub: {
-                auto res = runtime_utils::numeric_sub(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for -", ErrorKind::Type));
-            }
-            case Operator::Mul: {
-                auto res = runtime_utils::numeric_mul(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for *", ErrorKind::Type));
-            }
-            case Operator::Div: {
-                auto res = runtime_utils::numeric_div(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for /", ErrorKind::Type));
-            }
-            case Operator::Pow: {
-                auto res = runtime_utils::numeric_pow(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for **", ErrorKind::Type));
-            }
-            case Operator::Eq: {
-                bool eq = (l == r);
-                RuntimeValue out;
-                out.value = RuntimeValue::Bool{eq};
-                return ok(out);
-            }
-            case Operator::Ne: {
-                bool eq = (l == r);
-                RuntimeValue out;
-                out.value = RuntimeValue::Bool{!eq};
-                return ok(out);
-            }
-            case Operator::Gt: {
-                auto res = runtime_utils::compare_gt(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for >", ErrorKind::Type));
-            }
-            case Operator::Lt: {
-                auto res = runtime_utils::compare_lt(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for <", ErrorKind::Type));
-            }
-            case Operator::Ge: {
-                auto res = runtime_utils::compare_ge(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for >=", ErrorKind::Type));
-            }
-            case Operator::Le: {
-                auto res = runtime_utils::compare_le(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for <=", ErrorKind::Type));
-            }
-            case Operator::Concat: {
-                auto res = runtime_utils::concat(l, r);
-                if (is_ok(res)) return res;
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported operand types for ++", ErrorKind::Type));
-            }
-            default:
-                return err<RuntimeValue>(
-                    std::make_shared<Error>("unsupported binary operator", ErrorKind::Runtime));
-        }
+        return runtime_utils::eval_binary_op(b.op, l, r);
     }
 
     if (std::holds_alternative<E::FunctionCall>(expr.value)) {
@@ -469,45 +428,25 @@ Result<RuntimeValue> Interpreter::eval_expr(const Expr& expr, env_ptr env) {
                 std::make_shared<Error>("Program exit requested", ErrorKind::Exit));
         }
 
-        if (fc.name == "fstring") {
-            if (eval_args.empty() ||
-                !std::holds_alternative<RuntimeValue::String>(eval_args[0].value)) {
-                return err<RuntimeValue>(std::make_shared<Error>(
-                    "first argument to fstring must be a string template", ErrorKind::Type));
-            }
-            std::string tpl = std::get<RuntimeValue::String>(eval_args[0].value).value;
-            std::string out;
-            for (size_t i = 0; i < tpl.size(); ++i) {
-                char c = tpl[i];
-                if (c == '%' && i + 1 < tpl.size() &&
-                    std::isdigit(static_cast<unsigned char>(tpl[i + 1]))) {
-                    // parse number after '%'
-                    size_t j = i + 1;
-                    int num = 0;
-                    while (j < tpl.size() && std::isdigit(static_cast<unsigned char>(tpl[j]))) {
-                        num = num * 10 + (tpl[j] - '0');
-                        ++j;
-                    }
-                    // placeholder indices are 1-based and refer to following args
-                    // %1 refers to eval_args[1] (first arg after template)
-                    if (num >= 1 && static_cast<size_t>(num) < eval_args.size()) {
-                        out += to_string(eval_args[static_cast<size_t>(num)]);
-                    } else {
-                        // Out of bounds - could error or ignore
-                        return err<RuntimeValue>(std::make_shared<Error>(
-                            "fstring placeholder %" + std::to_string(num) + " out of range (only " +
-                                std::to_string(eval_args.size() - 1) + " arguments provided)",
-                            ErrorKind::Runtime));
-                    }
-                    // advance i to end of number
-                    i = j - 1;
-                } else {
-                    out.push_back(c);
-                }
-            }
-            RuntimeValue rv;
-            rv.value = RuntimeValue::String{out};
-            return ok(rv);
+        // Check if it's a builtin function
+        static const std::array builtin_names = {"fstring",
+                                                 "setLog",
+                                                 "log",
+                                                 "print",
+                                                 "clipboard_isText",
+                                                 "clipboard_read",
+                                                 "clipboard_write",
+                                                 "showAlertOK",
+                                                 "showAlert",
+                                                 "showAlertYesNoCancel"};
+        if (std::find(builtin_names.begin(), builtin_names.end(), fc.name) != builtin_names.end()) {
+            return builtin_functions::call_builtin(fc.name, eval_args, this->logger, this->console,
+                                                   this->clipboard, this->alert, this);
+        }
+
+        // Dispatch method calls to appropriate handlers
+        if (fc.name.starts_with("__method_")) {
+            return MethodDispatcher::dispatchMethod(fc.name, eval_args);
         }
 
         auto it = this->functions.find(fc.name);
@@ -516,7 +455,9 @@ Result<RuntimeValue> Interpreter::eval_expr(const Expr& expr, env_ptr env) {
             if (m.args.size() != eval_args.size())
                 return err<RuntimeValue>(
                     std::make_shared<Error>("argument count mismatch", ErrorKind::Arity));
-            auto child = std::make_shared<Environment>(env);
+            // Create function environment with global_env as parent, not calling env
+            // This prevents recursive calls from corrupting parent call's parameters
+            auto child = std::make_shared<Environment>(this->global_env);
             // Bind arguments by position - vector preserves parameter order
             std::size_t idx = 0;
             for (auto& kv : m.args) {
@@ -588,69 +529,14 @@ Result<RuntimeValue> Interpreter::eval_expr(const Expr& expr, env_ptr env) {
         auto& tc = std::get<E::TypeCast>(expr.value);
         auto val_result = this->eval_expr(*tc.expr, env);
         if (is_err(val_result)) return err<RuntimeValue>(val_result.error());
-        RuntimeValue val = val_result.value();
+        return runtime_utils::cast_value(val_result.value(), tc.target_type);
+    }
 
-        return std::visit(
-            [&](const auto& target) -> Result<RuntimeValue> {
-                using T = std::decay_t<decltype(target)>;
-
-                // Cast to int
-                if constexpr (std::is_same_v<T, AstType::Int>) {
-                    if (std::holds_alternative<RuntimeValue::Int>(val.value)) {
-                        return ok(val);  // already int
-                    }
-                    if (std::holds_alternative<RuntimeValue::Float>(val.value)) {
-                        auto f = std::get<RuntimeValue::Float>(val.value).value;
-                        RuntimeValue result;
-                        result.value = RuntimeValue::Int{static_cast<int64_t>(f)};  // truncate
-                        return ok(result);
-                    }
-                    if (std::holds_alternative<RuntimeValue::Bool>(val.value)) {
-                        auto b = std::get<RuntimeValue::Bool>(val.value).value;
-                        RuntimeValue result;
-                        result.value = RuntimeValue::Int{b ? 1 : 0};
-                        return ok(result);
-                    }
-                    return err<RuntimeValue>(std::make_shared<Error>(
-                        "cannot cast to int from this type", ErrorKind::Type));
-                }
-
-                // Cast to float
-                else if constexpr (std::is_same_v<T, AstType::Float>) {
-                    if (std::holds_alternative<RuntimeValue::Float>(val.value)) {
-                        return ok(val);  // already float
-                    }
-                    if (std::holds_alternative<RuntimeValue::Int>(val.value)) {
-                        auto i = std::get<RuntimeValue::Int>(val.value).value;
-                        RuntimeValue result;
-                        result.value = RuntimeValue::Float{static_cast<double>(i)};
-                        return ok(result);
-                    }
-                    return err<RuntimeValue>(std::make_shared<Error>(
-                        "cannot cast to float from this type", ErrorKind::Type));
-                }
-
-                // Cast to string
-                else if constexpr (std::is_same_v<T, AstType::String>) {
-                    RuntimeValue result;
-                    result.value = RuntimeValue::String{to_string(val)};
-                    return ok(result);
-                }
-
-                // Cast to boolean
-                else if constexpr (std::is_same_v<T, AstType::Bool>) {
-                    RuntimeValue result;
-                    result.value = RuntimeValue::Bool{is_truthy(val)};
-                    return ok(result);
-                }
-
-                // Other types cannot be cast
-                else {
-                    return err<RuntimeValue>(std::make_shared<Error>(
-                        "type casting not supported for this target type", ErrorKind::Type));
-                }
-            },
-            tc.target_type.value);
+    if (std::holds_alternative<E::MemberAccess>(expr.value)) {
+        auto& ma = std::get<E::MemberAccess>(expr.value);
+        auto obj_result = this->eval_expr(*ma.object, env);
+        if (is_err(obj_result)) return err<RuntimeValue>(obj_result.error());
+        return runtime_utils::access_member(obj_result.value(), ma.member);
     }
 
     return err<RuntimeValue>(
