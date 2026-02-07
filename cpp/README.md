@@ -173,11 +173,6 @@ Source: x() = 5 + 3;
 
 ## Type System Details
 
-**Static vs Dynamic**
-- Type inference from initializer expressions
-- Runtime type checking enforced during operations
-- Type mismatches produce `ErrorKind::Type` errors
-
 **Type Coercion**
 - Explicit: `int()`, `float()`, `bool()`, `str()` builtins
 
