@@ -21,6 +21,8 @@ You are welcome to
 
 By contributing you agree that your code will be published under the [BSD-3 Clause License](LICENSE)
 
+A simple overview of the codebase can be found in the [/cpp README](/cpp/README.md)
+
 Please adhere to the [project style guide](STYLE.md) and the `cpp/.clang-format`. Write clear, human-readable and maintainable code. AI-generated code is **not accepted**
 
 ## Code examples

@@ -180,7 +180,6 @@ Source: x() = 5 + 3;
 
 **Type Coercion**
 - Explicit: `int()`, `float()`, `bool()`, `str()` builtins
-- Implicit: None (strict typing)
 
 **Callable Types**
 - **Functions**: User-defined via `function` keyword
