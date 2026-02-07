@@ -1,5 +1,7 @@
 # CopyCleaner scripting language
 
+**!! Under Development. No release yet!**
+
 See /docs/ for documentation
 
 Codebase under /cpp/
@@ -10,23 +12,27 @@ Vs code extension for script highlighting in /vscode-extension/
 
 See [TODOS.md](TODOS.md) for development progress
 
+## Contribute
+
+You are welcome to
+- create your own fork
+- open issues for bugs or feature requests
+- submit pull requests for fixes or improvements
+
+By contributing you agree that your code will be published under the [BSD-3 Clause License](LICENSE)
+
+Please adhere to the [project style guide](STYLE.md) and the `cpp/.clang-format`. Write clear, human-readable and maintainable code. AI-generated code is **not accepted**
+
 ## Code examples
+
+All these examples work in the current build. See `/scripts` for more examples
 
 **Removes all non-ascii chars from the clipboard**
 ```cpp
 // Read current clipboard content
 string clipboard_content() = clipboard_read();
 
-// Check if clipboard has text
-boolean has_text() = clipboard_isText();
-
-if (!has_text) {
-    print("Clipboard does not contain text. Exiting.");
-    exit();
-};
-
 // Define regex pattern to match non-ASCII characters
-// ASCII characters are in range 0-127, so we match anything outside that range
 regex non_ascii_pattern(/[^\x00-\x7F]/g);
 
 // Find all non-ASCII characters
@@ -49,13 +55,7 @@ if (num_found > 0) {
     // Write cleaned text back to clipboard
     clipboard_write(cleaned);
     
-    // Show confirmation
-    string msg() = "Removed" ++ num_found ++ "non-ASCII character(s) from clipboard.";
-    showAlertOK("Clipboard Cleaned", msg);
-    
-    print(msg);
-}
-else {
+} else {
     showAlert("No non-ASCII characters found in clipboard.");
 };
 ```
@@ -67,22 +67,4 @@ else {
 - C++ compiler with C++20 support (Developed using GCC, but MSVC, CLANG, ... should work fine)
 - Ninja (optional, but recommended)
 
-### Compilation
-
-Navigate to the cpp directory and build:
-
-```bash
-cd cpp
-cmake -B build -S . -G Ninja
-cmake --build build
-```
-
-Or using make:
-
-```bash
-cd cpp
-cmake -B build -S .
-cmake --build build
-```
-
-The compiled executable will be located in `cpp/build/`
+Standard building using `CMakeLists.txt` in `/cpp/`

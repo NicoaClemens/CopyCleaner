@@ -35,7 +35,7 @@ Formatting rules
 
 Small conventions
 - Filename case: lower_snake_case for files and directories.
-- Use `camelCase` for local variables, `snake_case` for file names.
+- Use `camelCase` for local variables, `CamelCase` for classes, structs and Methods, `UPPER_SNAKE_CASE` for constants
 
 Documentation
 

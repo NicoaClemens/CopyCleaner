@@ -184,8 +184,8 @@ struct Statement {
         Expr expr;
     };
 
-    using Variant =
-        std::variant<Assignment, VarDecl, If, While, Return, FunctionDef, Break, Continue, ExpressionStmt>;
+    using Variant = std::variant<Assignment, VarDecl, If, While, Return, FunctionDef, Break,
+                                 Continue, ExpressionStmt>;
 
     Variant value;
 };
