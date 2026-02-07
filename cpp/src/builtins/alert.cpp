@@ -7,6 +7,10 @@
 #include <windows.h>
 #endif
 
+#ifdef __APPLE__
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 namespace builtins {
 
 int Alert::show_dialog(const std::string& title, const std::string& message, int button_type) {
@@ -47,7 +51,37 @@ int Alert::show_dialog(const std::string& title, const std::string& message, int
     return -1;
 
 #elif __APPLE__
-    // TODO
+    CFStringRef cf_title = CFStringCreateWithCString(NULL, title.c_str(), kCFStringEncodingUTF8);
+    CFStringRef cf_message =
+        CFStringCreateWithCString(NULL, message.c_str(), kCFStringEncodingUTF8);
+
+    CFOptionFlags response;
+    CFUserNotificationDisplayAlert(
+        0,                                  // timeout (0 = no timeout)
+        kCFUserNotificationNoteAlertLevel,  // flags
+        NULL,                               // iconURL
+        NULL,                               // soundURL
+        NULL,                               // localizationURL
+        cf_title, cf_message,
+        button_type == 0 ? CFSTR("OK") : (button_type == 1 ? CFSTR("OK") : CFSTR("Yes")),
+        button_type == 0 ? NULL : (button_type == 1 ? CFSTR("Cancel") : CFSTR("No")),
+        button_type == 2 ? CFSTR("Cancel") : NULL, &response);
+
+    CFRelease(cf_title);
+    CFRelease(cf_message);
+
+    switch (button_type) {
+        case 0:
+            return 0;
+        case 1:
+            return (response == kCFUserNotificationDefaultResponse) ? 1 : 0;
+        case 2:
+            if (response == kCFUserNotificationDefaultResponse) return 0;    // Yes
+            if (response == kCFUserNotificationAlternateResponse) return 1;  // No
+            return 2;                                                        // Cancel
+        default:
+            return -1;
+    }
     return -1;
 
 #else
