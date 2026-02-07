@@ -3,7 +3,10 @@
 
 #include "builtins/clipboard.h"
 
+#include <array>
+#include <cstdio>
 #include <iostream>
+#include <memory>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -19,17 +22,33 @@ Result<RuntimeValue> Clipboard::is_text() {
         return ok(result);
     }
 
-    bool has_text = IsClipboardFormatAvailable(CF_TEXT) || 
-                    IsClipboardFormatAvailable(CF_UNICODETEXT);
+    bool has_text =
+        IsClipboardFormatAvailable(CF_TEXT) || IsClipboardFormatAvailable(CF_UNICODETEXT);
 
     CloseClipboard();
 
     RuntimeValue result;
     result.value = RuntimeValue::Bool{has_text};
     return ok(result);
+#elif defined(__APPLE__)
+    // Use pbpaste to check if clipboard has content
+    FILE* pipe = popen("pbpaste", "r");
+    if (!pipe) {
+        RuntimeValue result;
+        result.value = RuntimeValue::Bool{false};
+        return ok(result);
+    }
+
+    char buffer[128];
+    bool has_content = (fgets(buffer, sizeof(buffer), pipe) != nullptr);
+    pclose(pipe);
+
+    RuntimeValue result;
+    result.value = RuntimeValue::Bool{has_content};
+    return ok(result);
 #else
-    // For non-Windows platforms, return false for now
-    // TODO: Implement for Linux/macOS
+    // For other platforms, return false for now
+    // TODO: Implement for Linux
     RuntimeValue result;
     result.value = RuntimeValue::Bool{false};
     return ok(result);
@@ -45,7 +64,7 @@ Result<RuntimeValue> Clipboard::read() {
     }
 
     std::string text;
-    
+
     // Try Unicode text first
     HANDLE hData = GetClipboardData(CF_UNICODETEXT);
     if (hData != nullptr) {
@@ -76,9 +95,28 @@ Result<RuntimeValue> Clipboard::read() {
     RuntimeValue result;
     result.value = RuntimeValue::String{text};
     return ok(result);
+#elif defined(__APPLE__)
+    // Use pbpaste to read clipboard
+    FILE* pipe = popen("pbpaste", "r");
+    if (!pipe) {
+        RuntimeValue result;
+        result.value = RuntimeValue::String{""};
+        return ok(result);
+    }
+
+    std::string text;
+    std::array<char, 1024> buffer;
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        text += buffer.data();
+    }
+    pclose(pipe);
+
+    RuntimeValue result;
+    result.value = RuntimeValue::String{text};
+    return ok(result);
 #else
-    // For non-Windows platforms, return empty string
-    // TODO: Implement for Linux/macOS
+    // For other platforms, return empty string
+    // TODO: Implement for Linux
     RuntimeValue result;
     result.value = RuntimeValue::String{""};
     return ok(result);
@@ -137,9 +175,26 @@ Result<RuntimeValue> Clipboard::write(const std::string& message) {
     RuntimeValue result;
     result.value = RuntimeValue::Bool{true};
     return ok(result);
+#elif defined(__APPLE__)
+    // Use pbcopy to write to clipboard
+    FILE* pipe = popen("pbcopy", "w");
+    if (!pipe) {
+        RuntimeValue result;
+        result.value = RuntimeValue::Bool{false};
+        return ok(result);
+    }
+
+    size_t written = fwrite(message.c_str(), 1, message.length(), pipe);
+    int status = pclose(pipe);
+
+    bool success = (written == message.length() && status == 0);
+
+    RuntimeValue result;
+    result.value = RuntimeValue::Bool{success};
+    return ok(result);
 #else
-    // For non-Windows platforms, return false
-    // TODO: Implement for Linux/macOS
+    // For other platforms, return false
+    // TODO: Implement for Linux
     RuntimeValue result;
     result.value = RuntimeValue::Bool{false};
     return ok(result);
