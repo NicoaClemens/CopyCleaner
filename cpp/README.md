@@ -174,7 +174,6 @@ Source: x() = 5 + 3;
 ## Type System Details
 
 **Static vs Dynamic**
-- Type annotations are **optional** in source code
 - Type inference from initializer expressions
 - Runtime type checking enforced during operations
 - Type mismatches produce `ErrorKind::Type` errors
