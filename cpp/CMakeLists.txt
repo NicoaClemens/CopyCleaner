@@ -28,7 +28,7 @@ set(SOURCES
     src/main.cpp
 )
 
-# Header files (for IDE organization)
+# Header files
 set(HEADERS
     include/ast_common.hpp
     include/ast.h
