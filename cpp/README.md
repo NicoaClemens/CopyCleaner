@@ -59,7 +59,7 @@ Source (.ccl) -> Lexer -> Parser -> AST -> Interpreter -> Execution
 
 **Builtin Modules** ([builtins/](include/builtins/))
 - `Clipboard`: System clipboard read/write
-- `Console`: Standard I/O (print, input)
+- `Console`: Console out interface
 - `Logger`: Debug logging with levels
 - `Alert`: Platform-specific message boxes
 
